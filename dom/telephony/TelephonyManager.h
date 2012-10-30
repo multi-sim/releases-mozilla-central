@@ -16,8 +16,6 @@
 #include "Telephony.h"
 #include "TelephonyCall.h"
 
-#define PHONE_NUMBER 1
-
 class nsIScriptContext;
 class nsPIDOMWindow;
 
@@ -87,14 +85,10 @@ private:
   TelephonyManager();
   ~TelephonyManager();
 
- // already_AddRefed<TelephonyCall>
- // CreateNewDialingCall(const nsAString& aNumber);
-
- // void
- // NoteDialedCallFromOtherInstance(const nsAString& aNumber);
-
   nsresult
   NotifyCallsChanged(TelephonyCall* aCall);
+
+  bool mIsDialAllowed;
 };
 
 END_TELEPHONY_NAMESPACE

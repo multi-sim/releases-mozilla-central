@@ -29,7 +29,7 @@
 #include <android/log.h>
 #define LOGI(args...)  __android_log_print(ANDROID_LOG_INFO, "TelephonyManager" , ## args)
 
-#define PHONE_NUMBER 1
+#define PHONE_NUMBER 2
 
 USING_TELEPHONY_NAMESPACE
 using namespace mozilla::dom::gonk;
@@ -207,7 +207,6 @@ TelephonyManager::GetCalls(jsval* aCalls)
 
   aCalls->setObject(*calls);
   return NS_OK;
-  //return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP
@@ -219,7 +218,26 @@ TelephonyManager::GetPhoneState(nsAString& aPhoneState)
 NS_IMETHODIMP
 TelephonyManager::GetPhones(jsval* aPhones)
 {  
-  return NS_ERROR_NOT_IMPLEMENTED;
+  JSObject* phones;
+  if (!phones) {
+    nsresult rv;
+    nsIScriptContext* sc = GetContextForEventHandlers(&rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+    if (sc) {
+      rv = nsTArrayToJSArray(sc->GetNativeContext(), mPhones, &phones);
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      if (!mRooted) {
+        NS_HOLD_JS_OBJECTS(this, TelephonyManager);
+        mRooted = true;
+      }
+    } else {
+      NS_ENSURE_SUCCESS(rv, rv);
+    }
+  }
+
+  aPhones->setObject(*phones);
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -227,7 +245,6 @@ TelephonyManager::GetDefaultPhone(nsIDOMTelephony** aDefaultPhone)
 {
   *aDefaultPhone = mDefaultPhone;
   return NS_OK;
-  //return NS_ERROR_NOT_IMPLEMENTED;  
 }
 
 NS_IMPL_EVENT_HANDLER(TelephonyManager, incoming)
