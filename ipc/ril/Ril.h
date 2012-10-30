@@ -17,6 +17,9 @@ namespace mozilla {
 namespace ipc {
 
 
+// TODO allstars
+// Add another class RilProxyData tp encapsulate RilRawData
+
 /*
  * Represents raw data going to or coming from the RIL socket. Can
  * actually contain multiple RIL parcels in the data block, and may

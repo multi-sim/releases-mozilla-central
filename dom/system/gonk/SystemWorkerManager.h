@@ -55,13 +55,17 @@ private:
   SystemWorkerManager();
   ~SystemWorkerManager();
 
+  //TODO ifdef
   nsresult InitRIL(JSContext *cx);
+  nsresult InitMSimRIL(JSContext *cx);
 #ifdef MOZ_WIDGET_GONK
   nsresult InitNetd(JSContext *cx);
 #endif
   nsresult InitWifi(JSContext *cx);
 
+  //TODO ifdef
   nsCOMPtr<nsIRadioInterfaceLayer> mRIL;
+  nsCOMPtr<nsIMSimRadioInterfaceLayer> mMSimRIL;
 #ifdef MOZ_WIDGET_GONK
   nsCOMPtr<nsIWorkerHolder> mNetdWorker;
 #endif

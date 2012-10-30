@@ -35,9 +35,19 @@
 #include "nsContentUtils.h"
 #include "nsServiceManagerUtils.h"
 #include "nsThreadUtils.h"
+//TODO ifdef
 #include "nsRadioInterfaceLayer.h"
+#include "nsMSimRadioInterfaceLayer.h"
 #include "WifiWorker.h"
 #include "mozilla/StaticPtr.h"
+
+#undef LOG
+#if defined(MOZ_WIDGET_GONK)
+#include <android/log.h>
+#define LOGD(args...)  __android_log_print(ANDROID_LOG_INFO, "Gonk", args)
+#else
+#define LOG(args...)  printf(args);
+#endif
 
 USING_WORKERS_NAMESPACE
 
@@ -51,6 +61,10 @@ using namespace mozilla::system;
   { 0x33901e46, 0x33b8, 0x11e1, \
   { 0x98, 0x69, 0xf4, 0x6d, 0x04, 0xd2, 0x5b, 0xcc } }
 
+const int INDEX_SIZE = 4;
+const int DATA_SIZE = 4;
+const int HEADER_SIZE = INDEX_SIZE + DATA_SIZE;
+
 namespace {
 
 NS_DEFINE_CID(kWifiWorkerCID, NS_WIFIWORKER_CID);
@@ -62,10 +76,16 @@ SystemWorkerManager *gInstance = nullptr;
 class ConnectWorkerToRIL : public WorkerTask
 {
 public:
+  ConnectWorkerToRIL(int subId)
+    : mSubId(subId)
+  { }
+
   virtual bool RunTask(JSContext *aCx);
+private:
+  int mSubId;
 };
 
-JSBool
+template <int index> JSBool
 PostToRIL(JSContext *cx, unsigned argc, jsval *vp)
 {
   NS_ASSERTION(!NS_IsMainThread(), "Expecting to be on the worker thread");
@@ -117,8 +137,13 @@ PostToRIL(JSContext *cx, unsigned argc, jsval *vp)
     return false;
   }
 
-  rm->mSize = size;
-  memcpy(rm->mData, data, size);
+  //TODO See Ril.h, use RilProxyData
+  rm->mSize = size + INDEX_SIZE;
+  rm->mData[0] = (index >> 24) & 0xff;
+  rm->mData[1] = (index >> 16) & 0xff;
+  rm->mData[2] = (index >> 8) & 0xff;
+  rm->mData[3] = index & 0xff;
+  memcpy(&rm->mData[INDEX_SIZE], data, size);
 
   RilRawData *tosend = rm.forget();
   JS_ALWAYS_TRUE(SendRilRawData(&tosend));
@@ -133,9 +158,13 @@ ConnectWorkerToRIL::RunTask(JSContext *aCx)
   NS_ASSERTION(!NS_IsMainThread(), "Expecting to be on the worker thread");
   NS_ASSERTION(!JS_IsRunning(aCx), "Are we being called somehow?");
   JSObject *workerGlobal = JS_GetGlobalObject(aCx);
-
-  return !!JS_DefineFunction(aCx, workerGlobal, "postRILMessage", PostToRIL, 1,
-                             0);
+  //TODO non-type param can only be constant expression
+  if (mSubId == 0) 
+    return !!JS_DefineFunction(aCx, workerGlobal, "postRILMessage",
+             PostToRIL<0>, 1, 0);
+  else
+    return !!JS_DefineFunction(aCx, workerGlobal, "postRILMessage",
+             PostToRIL<1>, 1, 0);
 }
 
 class RILReceiver : public RilConsumer
@@ -154,18 +183,55 @@ class RILReceiver : public RilConsumer
   };
 
 public:
-  RILReceiver(WorkerCrossThreadDispatcher *aDispatcher)
+ RILReceiver(WorkerCrossThreadDispatcher *aDispatcher)
     : mDispatcher(aDispatcher)
   { }
 
-  virtual void MessageReceived(RilRawData *aMessage) {
-    nsRefPtr<DispatchRILEvent> dre(new DispatchRILEvent(aMessage));
-    mDispatcher->PostTask(dre);
-  }
+  RILReceiver() { }
+
+  virtual void MessageReceived(RilRawData *aMessage);
+  void RegisterRILEvent(int index, WorkerCrossThreadDispatcher *aDispatcher);
 
 private:
   nsRefPtr<WorkerCrossThreadDispatcher> mDispatcher;
+  nsRefPtr<WorkerCrossThreadDispatcher> mDispatchers[2];
 };
+
+void
+RILReceiver::MessageReceived(RilRawData *aMessage)
+{
+  int offset = 0,totalSize = aMessage->mSize;
+  while (offset < totalSize) {
+    unsigned int index, dataSize;
+    //TODO See Ril.h, use RilProxyData
+    index = aMessage->mData[offset + 0] << 24 |
+            aMessage->mData[offset + 1] << 16 |
+            aMessage->mData[offset + 2] << 8  |
+            aMessage->mData[offset + 3];
+    dataSize = aMessage->mData[offset + 4] << 24 |
+               aMessage->mData[offset + 5] << 16 |
+               aMessage->mData[offset + 6] << 8  |
+               aMessage->mData[offset + 7];
+    LOGD("XXX index=%d, dataSize=%d", index, dataSize);
+
+    nsAutoPtr<RilRawData> data(new RilRawData());
+    data->mSize = dataSize;
+    memcpy(data->mData, &aMessage->mData[offset + HEADER_SIZE], dataSize);
+
+    RilRawData *event = data.forget();
+    nsRefPtr<DispatchRILEvent> dre(new DispatchRILEvent(event));
+
+    mDispatchers[index]->PostTask(dre);
+
+    offset += HEADER_SIZE + dataSize;
+  }
+}
+
+void
+RILReceiver::RegisterRILEvent(int index, WorkerCrossThreadDispatcher *aDispatcher)
+{
+  mDispatchers[index] = aDispatcher;
+}
 
 bool
 RILReceiver::DispatchRILEvent::RunTask(JSContext *aCx)
@@ -371,11 +437,17 @@ SystemWorkerManager::Init()
     return NS_ERROR_FAILURE;
   }
 
-  nsresult rv = InitRIL(cx);
+  nsresult rv = InitMSimRIL(cx);
   if (NS_FAILED(rv)) {
-    NS_WARNING("Failed to initialize RIL/Telephony!");
+    NS_WARNING("Failed to initialize Multi-SIM RIL/Telephony!");
     return rv;
   }
+
+//  nsresult rv = InitRIL(cx);
+//  if (NS_FAILED(rv)) {
+//    NS_WARNING("Failed to initialize RIL/Telephony!");
+//    return rv;
+//  }
 
   rv = InitWifi(cx);
   if (NS_FAILED(rv)) {
@@ -421,6 +493,7 @@ SystemWorkerManager::Shutdown()
   StopRil();
 
   mRIL = nullptr;
+  mMSimRIL = nullptr;
 
 #ifdef MOZ_WIDGET_GONK
   StopNetd();
@@ -479,6 +552,8 @@ SystemWorkerManager::GetInterface(const nsIID &aIID, void **aResult)
     return NS_OK;
   }
 
+  //TODO nsIMSimRadioInterfaceLayer
+
   if (aIID.Equals(NS_GET_IID(nsIWifi))) {
     return CallQueryInterface(mWifiWorker,
                               reinterpret_cast<nsIWifi**>(aResult));
@@ -495,6 +570,7 @@ SystemWorkerManager::GetInterface(const nsIID &aIID, void **aResult)
   return NS_ERROR_NO_INTERFACE;
 }
 
+#if 0
 nsresult
 SystemWorkerManager::InitRIL(JSContext *cx)
 {
@@ -532,6 +608,51 @@ SystemWorkerManager::InitRIL(JSContext *cx)
   }
 
   mRIL = ril;
+  return NS_OK;
+}
+#endif
+
+nsresult
+SystemWorkerManager::InitMSimRIL(JSContext *cx)
+{
+  nsCOMPtr<nsIMSimRadioInterfaceLayer> mSimRIL = do_CreateInstance("@mozilla.org/msim_ril;1");
+  NS_ENSURE_TRUE(mSimRIL, NS_ERROR_FAILURE);
+
+  mozilla::RefPtr<RILReceiver> receiver = new RILReceiver();
+
+  for (int i = 0; i < 2; i++) {
+    nsCOMPtr<nsIMSimWorkerHolder> workers = do_QueryInterface(mSimRIL);
+    if (!workers) {
+      break;
+    }
+
+    jsval workerval;
+    nsresult rv = workers->GetWorker(i, &workerval);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    NS_ENSURE_TRUE(!JSVAL_IS_PRIMITIVE(workerval), NS_ERROR_UNEXPECTED);
+
+    JSAutoRequest ar(cx);
+    JSAutoCompartment ac(cx, JSVAL_TO_OBJECT(workerval));
+
+    WorkerCrossThreadDispatcher *wctd =
+      GetWorkerCrossThreadDispatcher(cx, workerval);
+    if (!wctd) {
+      return NS_ERROR_FAILURE;
+    }
+
+    // TODO race?
+    nsRefPtr<ConnectWorkerToRIL> connection = new ConnectWorkerToRIL(i);
+    if (!wctd->PostTask(connection)) {
+      return NS_ERROR_UNEXPECTED;
+    }
+
+    receiver->RegisterRILEvent(i, wctd);
+    
+  }
+  // Now that we're set up, connect ourselves to the RIL thread.
+  StartRil(receiver);
+  mMSimRIL = mSimRIL ;
   return NS_OK;
 }
 

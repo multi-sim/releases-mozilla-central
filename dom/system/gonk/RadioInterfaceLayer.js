@@ -30,6 +30,8 @@ const RADIOINTERFACELAYER_CID =
   Components.ID("{2d831c8d-6017-435b-a80c-e5d422810cea}");
 const RILNETWORKINTERFACE_CID =
   Components.ID("{3bdd52a9-3965-4130-b569-0ac5afed045e}");
+const MSIMRADIOINTERFACELAYER_CID =
+  Components.ID("{ab558c83-f897-48f0-abb5-2dc8a4edfc1c}");
 
 const nsIAudioManager = Ci.nsIAudioManager;
 const nsIRadioInterfaceLayer = Ci.nsIRadioInterfaceLayer;
@@ -2558,7 +2560,40 @@ RILNetworkInterface.prototype = {
 
 };
 
-const NSGetFactory = XPCOMUtils.generateNSGetFactory([RadioInterfaceLayer]);
+function MSimRadioInterfaceLayer() {
+  debug("Starting MSimRIL");
+  //TODO id
+  this.mRILs = [new RadioInterfaceLayer(), new RadioInterfaceLayer()];
+};
+MSimRadioInterfaceLayer.prototype = {
+  classID:   MSIMRADIOINTERFACELAYER_CID,
+  classInfo: XPCOMUtils.generateCI(
+    {classID: MSIMRADIOINTERFACELAYER_CID,
+     classDescription: "MSimRadioInterfaceLayer",
+     interfaces: [Ci.nsIMSimWorkerHolder, Ci.nsIMSimRadioInterfaceLayer]}),
+
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsIMSimWorkerHolder,
+                                         Ci.nsIMSimRadioInterfaceLayer]),
+
+  onerror: function onerror(event) {
+    debug("Got an error: " + event.filename + ":" +
+          event.lineno + ": " + event.message + "\n");
+    event.preventDefault();
+  },
+
+  onmessage: function onmessage(event) {
+    let message = event.data;
+    debug("Received message from worker: " + JSON.stringify(message));
+  },
+
+  getWorker: function getWorker(i) {
+    debug("getWorker "+i);
+    return this.mRILs[i].worker;
+  }
+};
+
+const NSGetFactory = XPCOMUtils.generateNSGetFactory([RadioInterfaceLayer,
+                                                      MSimRadioInterfaceLayer]);
 
 let debug;
 if (DEBUG) {
