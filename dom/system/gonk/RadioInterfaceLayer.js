@@ -2571,20 +2571,8 @@ MSimRadioInterfaceLayer.prototype = {
     {classID: MSIMRADIOINTERFACELAYER_CID,
      classDescription: "MSimRadioInterfaceLayer",
      interfaces: [Ci.nsIMSimWorkerHolder, Ci.nsIMSimRadioInterfaceLayer]}),
-
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIMSimWorkerHolder,
                                          Ci.nsIMSimRadioInterfaceLayer]),
-
-  onerror: function onerror(event) {
-    debug("Got an error: " + event.filename + ":" +
-          event.lineno + ": " + event.message + "\n");
-    event.preventDefault();
-  },
-
-  onmessage: function onmessage(event) {
-    let message = event.data;
-    debug("Received message from worker: " + JSON.stringify(message));
-  },
 
   getWorker: function getWorker(i) {
     debug("getWorker "+i);
