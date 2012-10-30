@@ -25,6 +25,8 @@
 #include "CallEvent.h"
 #include "TelephonyCall.h"
 
+#include <android/log.h>
+#define LOGI(args...)  __android_log_print(ANDROID_LOG_INFO, "Telephony" , ## args)
 USING_TELEPHONY_NAMESPACE
 using namespace mozilla::dom::gonk;
 
@@ -36,6 +38,7 @@ TelephonyList* gTelephonyList;
 
 } // anonymous namespace
 
+volatile int telephonyListLength = 0;
 Telephony::Telephony()
 : mActiveCall(nullptr), mCallsArray(nullptr), mRooted(false)
 {
@@ -44,6 +47,7 @@ Telephony::Telephony()
   }
 
   gTelephonyList->AppendElement(this);
+  telephonyListLength = gTelephonyList->Length();
 }
 
 Telephony::~Telephony()
@@ -58,7 +62,7 @@ Telephony::~Telephony()
 
   NS_ASSERTION(gTelephonyList, "This should never be null!");
   NS_ASSERTION(gTelephonyList->Contains(this), "Should be in the list!");
-
+telephonyListLength = gTelephonyList->Length();
   if (gTelephonyList->Length() == 1) {
     delete gTelephonyList;
     gTelephonyList = nullptr;
@@ -70,21 +74,22 @@ Telephony::~Telephony()
 
 // static
 already_AddRefed<Telephony>
-Telephony::Create(nsPIDOMWindow* aOwner, nsIRILContentHelper* aRIL)
+Telephony::Create(TelephonyManager* aTelephonyManager, uint32_t aPhoneIndex, nsIRILContentHelper* aRIL)
 {
-  NS_ASSERTION(aOwner, "Null owner!");
+  NS_ASSERTION(aTelephonyManager, "Null owner!");
   NS_ASSERTION(aRIL, "Null RIL!");
-
+/*
   nsCOMPtr<nsIScriptGlobalObject> sgo = do_QueryInterface(aOwner);
   NS_ENSURE_TRUE(sgo, nullptr);
 
   nsCOMPtr<nsIScriptContext> scriptContext = sgo->GetContext();
   NS_ENSURE_TRUE(scriptContext, nullptr);
-
+*/
   nsRefPtr<Telephony> telephony = new Telephony();
 
-  telephony->BindToOwner(aOwner);
-
+  telephony->BindToOwner(aTelephonyManager->GetOwner());
+  telephony->mTelephonyManager = aTelephonyManager;
+  telephony->mPhoneIndex = aPhoneIndex;
   telephony->mRIL = aRIL;
   telephony->mRILTelephonyCallback = new RILTelephonyCallback(telephony);
 
@@ -135,6 +140,26 @@ Telephony::NotifyCallsChanged(TelephonyCall* aCall)
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
+}
+
+void
+Telephony::AddCall(TelephonyCall* aCall)
+{
+  NS_ASSERTION(!mCalls.Contains(aCall), "Already know about this one!");
+  mTelephonyManager->AddCall(aCall);
+  mCalls.AppendElement(aCall);
+  mCallsArray = nullptr;
+  NotifyCallsChanged(aCall);
+}
+
+void
+Telephony::RemoveCall(TelephonyCall* aCall)
+{
+  NS_ASSERTION(mCalls.Contains(aCall), "Didn't know about this one!");
+  mTelephonyManager->RemoveCall(aCall);
+  mCalls.RemoveElement(aCall);
+  mCallsArray = nullptr;
+  NotifyCallsChanged(aCall);
 }
 
 nsresult
@@ -485,10 +510,11 @@ Telephony::NotifyError(int32_t aCallIndex,
 
   return NS_OK;
 }
-
+/*
 nsresult
-NS_NewTelephony(nsPIDOMWindow* aWindow, nsIDOMTelephony** aTelephony)
+NS_NewTelephony(nsPIDOMWindow* aWindow, Telephony** aTelephony)
 {
+  
   NS_ASSERTION(aWindow, "Null pointer!");
 
   nsPIDOMWindow* innerWindow = aWindow->IsInnerWindow() ?
@@ -510,8 +536,15 @@ NS_NewTelephony(nsPIDOMWindow* aWindow, nsIDOMTelephony** aTelephony)
   }
 
   nsCOMPtr<nsIRILContentHelper> ril =
-    do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
+    do_CreateInstance(NS_RILCONTENTHELPER_CONTRACTID);
+   // do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
   NS_ENSURE_TRUE(ril, NS_ERROR_UNEXPECTED);
+  
+  nsCOMPtr<nsIRILContentHelper> ril2 =
+    do_CreateInstance(NS_RILCONTENTHELPER_CONTRACTID);
+   // do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
+  NS_ENSURE_TRUE(ril2, NS_ERROR_UNEXPECTED);
+  
 
   nsRefPtr<Telephony> telephony = Telephony::Create(innerWindow, ril);
   NS_ENSURE_TRUE(telephony, NS_ERROR_UNEXPECTED);
@@ -519,3 +552,4 @@ NS_NewTelephony(nsPIDOMWindow* aWindow, nsIDOMTelephony** aTelephony)
   telephony.forget(aTelephony);
   return NS_OK;
 }
+*/

@@ -1,0 +1,34 @@
+/* -*- Mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; tab-width: 40 -*- */
+/* vim: set ts=2 et sw=2 tw=40: */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#include "nsIDOMEventTarget.idl"
+
+interface nsIDOMEventListener;
+interface nsIDOMTelephony;
+interface nsIDOMTelephonyCall;
+
+[scriptable, builtinclass, uuid(b20f14ff-dcef-46b8-8053-94d55332ae90)]
+interface nsIDOMTelephonyManager : nsIDOMEventTarget
+{
+  attribute boolean muted;
+  attribute boolean speakerEnabled;
+
+  // The call that is "active", i.e. receives microphone input and tones
+  // generated via startTone.
+  readonly attribute jsval active;
+
+  // Array of all calls that are currently connected.
+  readonly attribute jsval calls;
+
+  readonly attribute DOMString phoneState;
+
+  readonly attribute jsval phones;
+
+  readonly attribute nsIDOMTelephony defaultPhone;
+
+  [implicit_jscontext] attribute jsval onincoming;
+  [implicit_jscontext] attribute jsval oncallschanged;
+};

@@ -5,16 +5,20 @@ MARIONETTE_TIMEOUT = 10000;
 
 SpecialPowers.addPermission("telephony", true, document);
 
-let telephony = window.navigator.mozTelephony;
+let mgr = window.navigator.mozTelephonyManager;
+let telephony = mgr.defaultPhone;
 let number = "5555552368";
 let outgoing;
 let calls;
 
 function verifyInitialState() {
   log("Verifying initial state.");
+  ok(mgr);
   ok(telephony);
   is(telephony.active, null);
+  ok(mgr.calls);
   ok(telephony.calls);
+  is(mgr.calls.length, 0);
   is(telephony.calls.length, 0);
   calls = telephony.calls;
 
@@ -35,7 +39,9 @@ function dial() {
 
   is(outgoing, telephony.active);
   //ok(telephony.calls === calls); // bug 717414
+  is(mgr.calls.length, 1);
   is(telephony.calls.length, 1);
+  is(mgr.calls[0], outgoing);
   is(telephony.calls[0], outgoing);
 
   outgoing.onalerting = function onalerting(event) {
@@ -85,6 +91,7 @@ function hangUp() {
     is(outgoing.state, "disconnected");
 
     is(telephony.active, null);
+    is(mgr.calls.length, 0);
     is(telephony.calls.length, 0);
 
     runEmulatorCmd("gsm list", function(result) {

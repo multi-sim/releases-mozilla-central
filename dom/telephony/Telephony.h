@@ -9,6 +9,7 @@
 
 #include "TelephonyCommon.h"
 
+#include "TelephonyManager.h"
 #include "nsIDOMTelephony.h"
 #include "nsIDOMTelephonyCall.h"
 #include "nsIRadioInterfaceLayer.h"
@@ -21,17 +22,21 @@ BEGIN_TELEPHONY_NAMESPACE
 class Telephony : public nsDOMEventTargetHelper,
                   public nsIDOMTelephony
 {
+ // TelephonyManager* mTelephonyManager;
+  nsRefPtr<TelephonyManager> mTelephonyManager;
+
   nsCOMPtr<nsIRILContentHelper> mRIL;
   nsCOMPtr<nsIRILTelephonyCallback> mRILTelephonyCallback;
 
   TelephonyCall* mActiveCall;
   nsTArray<nsRefPtr<TelephonyCall> > mCalls;
-
+  
   // Cached calls array object. Cleared whenever mCalls changes and then rebuilt
   // once a page looks for the liveCalls attribute.
   JSObject* mCallsArray;
 
   bool mRooted;
+  uint32_t mPhoneIndex;
 
 public:
   NS_DECL_ISUPPORTS_INHERITED
@@ -43,7 +48,7 @@ public:
                                                    nsDOMEventTargetHelper)
 
   static already_AddRefed<Telephony>
-  Create(nsPIDOMWindow* aOwner, nsIRILContentHelper* aRIL);
+  Create(TelephonyManager* aTelephonyManager, uint32_t aPhoneIndex, nsIRILContentHelper* aRIL);
 
   nsIDOMEventTarget*
   ToIDOMEventTarget() const
@@ -58,24 +63,28 @@ public:
     return ToIDOMEventTarget();
   }
 
-  void
-  AddCall(TelephonyCall* aCall)
+  void 
+  AddCall(TelephonyCall* aCall);
+  /*
   {
     NS_ASSERTION(!mCalls.Contains(aCall), "Already know about this one!");
+    mTelephonyManager->AddCall(aCall);
     mCalls.AppendElement(aCall);
     mCallsArray = nullptr;
     NotifyCallsChanged(aCall);
   }
-
+*/
   void
-  RemoveCall(TelephonyCall* aCall)
+  RemoveCall(TelephonyCall* aCall);
+  /*
   {
     NS_ASSERTION(mCalls.Contains(aCall), "Didn't know about this one!");
+    mTelephonyManager->RemoveCall(aCall);
     mCalls.RemoveElement(aCall);
     mCallsArray = nullptr;
     NotifyCallsChanged(aCall);
   }
-
+*/
   nsIRILContentHelper*
   RIL() const
   {

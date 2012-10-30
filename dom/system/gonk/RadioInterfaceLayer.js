@@ -634,7 +634,6 @@ RadioInterfaceLayer.prototype = {
       debug("Unregistered " + permission + " target: " + target);
     }
   },
-
   registerTelephonyTarget: function registerTelephonyTarget(target) {
     this.registerMessageTarget("telephony", target);
   },

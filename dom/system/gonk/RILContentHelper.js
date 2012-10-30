@@ -517,7 +517,6 @@ RILContentHelper.prototype = {
   },
 
   registerTelephonyMsg: function registerTelephonyMsg() {
-    debug("Registering for telephony-related messages");
     cpmm.sendAsyncMessage("RIL:RegisterTelephonyMsg");
   },
 

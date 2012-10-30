@@ -7,11 +7,14 @@
 #include "nsISupports.idl"
 
 interface nsIDOMTelephony;
+interface nsIDOMTelephonyManager;
 interface nsIDOMMozVoicemail;
 
 [scriptable, builtinclass, uuid(4a297d39-2730-47b8-b406-666b3737aacb)]
 interface nsIDOMNavigatorTelephony : nsISupports
 {
-  readonly attribute nsIDOMTelephony mozTelephony;
+  //readonly attribute nsIDOMTelephony mozTelephony;
+  readonly attribute nsIDOMTelephonyManager mozTelephonyManager;
+
   readonly attribute nsIDOMMozVoicemail mozVoicemail;
 };

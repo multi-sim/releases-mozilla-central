@@ -10,11 +10,13 @@
 #include "nsIDOMTelephony.h"
 #include "nsIDOMVoicemail.h"
 #include "nsPIDOMWindow.h"
-
+#include "Telephony.h"
 // Implemented in Telephony.cpp / Voicemail.cpp.
-
 nsresult
-NS_NewTelephony(nsPIDOMWindow* aWindow, nsIDOMTelephony** aTelephony);
+NS_NewTelephonyManager(nsPIDOMWindow* aWindow, nsIDOMTelephonyManager** aManager);
+
+//nsresult
+//NS_NewTelephony(nsPIDOMWindow* aWindow, Telephony** aTelephony);
 
 nsresult
 NS_NewVoicemail(nsPIDOMWindow* aWindow, nsIDOMMozVoicemail** aVoicemail);
