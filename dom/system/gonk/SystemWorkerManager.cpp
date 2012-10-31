@@ -61,9 +61,9 @@ using namespace mozilla::system;
   { 0x33901e46, 0x33b8, 0x11e1, \
   { 0x98, 0x69, 0xf4, 0x6d, 0x04, 0xd2, 0x5b, 0xcc } }
 
-const int INDEX_SIZE = 4;
+const int SUB_ID_SIZE = 4;
 const int DATA_SIZE = 4;
-const int HEADER_SIZE = INDEX_SIZE + DATA_SIZE;
+const int HEADER_SIZE = SUB_ID_SIZE + DATA_SIZE;
 
 namespace {
 
@@ -85,7 +85,6 @@ private:
   int mSubId;
 };
 
-//template <int index>
 JSBool
 PostToRIL(JSContext *cx, unsigned argc, jsval *vp)
 {
@@ -139,21 +138,21 @@ PostToRIL(JSContext *cx, unsigned argc, jsval *vp)
   }
 
   JSObject *workerGlobal = JS_GetGlobalObject(cx);
-  jsval indexJs;
-  JSBool ret = JS_GetProperty(cx, workerGlobal, "subscriptionId", &indexJs);
-  int index = indexJs.toInt32();
-  LOGD("XXX ret=%d, index=%d",ret, index);
-  //TODO ignore requests from 1
-//  if(index == 1) {
-//    return true;
-//  }
+  jsval subVal;
+
+  if (!JS_GetProperty(cx, workerGlobal, "subscriptionId", &subVal)) {
+    return false;
+  };
+  int subId = subVal.toInt32();
+
+  LOGD("XXX  subId=%d", subId);
   //TODO See Ril.h, use RilProxyData
-  rm->mSize = size + INDEX_SIZE;
-  rm->mData[0] = (index >> 24) & 0xff;
-  rm->mData[1] = (index >> 16) & 0xff;
-  rm->mData[2] = (index >> 8) & 0xff;
-  rm->mData[3] = index & 0xff;
-  memcpy(&rm->mData[INDEX_SIZE], data, size);
+  rm->mSize = size + SUB_ID_SIZE;
+  rm->mData[0] = (subId >> 24) & 0xff;
+  rm->mData[1] = (subId >> 16) & 0xff;
+  rm->mData[2] = (subId >> 8) & 0xff;
+  rm->mData[3] = subId & 0xff;
+  memcpy(&rm->mData[SUB_ID_SIZE], data, size);
 
   RilRawData *tosend = rm.forget();
   JS_ALWAYS_TRUE(SendRilRawData(&tosend));
@@ -168,18 +167,12 @@ ConnectWorkerToRIL::RunTask(JSContext *aCx)
   NS_ASSERTION(!NS_IsMainThread(), "Expecting to be on the worker thread");
   NS_ASSERTION(!JS_IsRunning(aCx), "Are we being called somehow?");
   JSObject *workerGlobal = JS_GetGlobalObject(aCx);
-  bool ret = JS_DefineProperty(aCx, workerGlobal, "subscriptionId",
-                               INT_TO_JSVAL(mSubId), nullptr, nullptr, 0);
-  LOGD("ret = %d, mSubId=%d",ret, mSubId);
+  if (!JS_DefineProperty(aCx, workerGlobal, "subscriptionId",
+      INT_TO_JSVAL(mSubId), nullptr, nullptr, 0)) {
+    return false;
+  };
   return !!JS_DefineFunction(aCx, workerGlobal, "postRILMessage",
-            PostToRIL, 1, 0);
-  //TODO non-type param can only be constant expression
-//  if (mSubId == 0) 
-//    return !!JS_DefineFunction(aCx, workerGlobal, "postRILMessage",
-//             PostToRIL<0>, 1, 0);
-//  else
-//    return !!JS_DefineFunction(aCx, workerGlobal, "postRILMessage",
-//             PostToRIL<1>, 1, 0);
+           PostToRIL, 1, 0);
 }
 
 class RILReceiver : public RilConsumer
@@ -205,7 +198,7 @@ public:
   RILReceiver() { }
 
   virtual void MessageReceived(RilRawData *aMessage);
-  void RegisterRILEvent(int index, WorkerCrossThreadDispatcher *aDispatcher);
+  void RegisterRILEvent(int subId, WorkerCrossThreadDispatcher *aDispatcher);
 
 private:
   nsRefPtr<WorkerCrossThreadDispatcher> mDispatcher;
@@ -217,9 +210,9 @@ RILReceiver::MessageReceived(RilRawData *aMessage)
 {
   int offset = 0,totalSize = aMessage->mSize;
   while (offset < totalSize) {
-    unsigned int index, dataSize;
+    unsigned int subId, dataSize;
     //TODO See Ril.h, use RilProxyData
-    index = aMessage->mData[offset + 0] << 24 |
+    subId = aMessage->mData[offset + 0] << 24 |
             aMessage->mData[offset + 1] << 16 |
             aMessage->mData[offset + 2] << 8  |
             aMessage->mData[offset + 3];
@@ -227,7 +220,7 @@ RILReceiver::MessageReceived(RilRawData *aMessage)
                aMessage->mData[offset + 5] << 16 |
                aMessage->mData[offset + 6] << 8  |
                aMessage->mData[offset + 7];
-    LOGD("XXX index=%d, dataSize=%d", index, dataSize);
+    LOGD("XXX subId=%d, dataSize=%d", subId, dataSize);
 
     nsAutoPtr<RilRawData> data(new RilRawData());
     data->mSize = dataSize;
@@ -236,16 +229,16 @@ RILReceiver::MessageReceived(RilRawData *aMessage)
     RilRawData *event = data.forget();
     nsRefPtr<DispatchRILEvent> dre(new DispatchRILEvent(event));
 
-    mDispatchers[index]->PostTask(dre);
+    mDispatchers[subId]->PostTask(dre);
 
     offset += HEADER_SIZE + dataSize;
   }
 }
 
 void
-RILReceiver::RegisterRILEvent(int index, WorkerCrossThreadDispatcher *aDispatcher)
+RILReceiver::RegisterRILEvent(int subId, WorkerCrossThreadDispatcher *aDispatcher)
 {
-  mDispatchers[index] = aDispatcher;
+  mDispatchers[subId] = aDispatcher;
 }
 
 bool
@@ -635,6 +628,7 @@ SystemWorkerManager::InitMSimRIL(JSContext *cx)
 
   mozilla::RefPtr<RILReceiver> receiver = new RILReceiver();
 
+  //TODO NUM_OF_RIL
   for (int i = 0; i < 2; i++) {
     nsCOMPtr<nsIMSimWorkerHolder> workers = do_QueryInterface(mSimRIL);
     if (!workers) {
@@ -663,7 +657,6 @@ SystemWorkerManager::InitMSimRIL(JSContext *cx)
     }
 
     receiver->RegisterRILEvent(i, wctd);
-    
   }
   // Now that we're set up, connect ourselves to the RIL thread.
   StartRil(receiver);
