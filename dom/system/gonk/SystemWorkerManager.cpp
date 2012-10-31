@@ -85,7 +85,8 @@ private:
   int mSubId;
 };
 
-template <int index> JSBool
+//template <int index>
+JSBool
 PostToRIL(JSContext *cx, unsigned argc, jsval *vp)
 {
   NS_ASSERTION(!NS_IsMainThread(), "Expecting to be on the worker thread");
@@ -137,6 +138,15 @@ PostToRIL(JSContext *cx, unsigned argc, jsval *vp)
     return false;
   }
 
+  JSObject *workerGlobal = JS_GetGlobalObject(cx);
+  jsval indexJs;
+  JSBool ret = JS_GetProperty(cx, workerGlobal, "subscriptionId", &indexJs);
+  int index = indexJs.toInt32();
+  LOGD("XXX ret=%d, index=%d",ret, index);
+  //TODO ignore requests from 1
+//  if(index == 1) {
+//    return true;
+//  }
   //TODO See Ril.h, use RilProxyData
   rm->mSize = size + INDEX_SIZE;
   rm->mData[0] = (index >> 24) & 0xff;
@@ -158,13 +168,18 @@ ConnectWorkerToRIL::RunTask(JSContext *aCx)
   NS_ASSERTION(!NS_IsMainThread(), "Expecting to be on the worker thread");
   NS_ASSERTION(!JS_IsRunning(aCx), "Are we being called somehow?");
   JSObject *workerGlobal = JS_GetGlobalObject(aCx);
+  bool ret = JS_DefineProperty(aCx, workerGlobal, "subscriptionId",
+                               INT_TO_JSVAL(mSubId), nullptr, nullptr, 0);
+  LOGD("ret = %d, mSubId=%d",ret, mSubId);
+  return !!JS_DefineFunction(aCx, workerGlobal, "postRILMessage",
+            PostToRIL, 1, 0);
   //TODO non-type param can only be constant expression
-  if (mSubId == 0) 
-    return !!JS_DefineFunction(aCx, workerGlobal, "postRILMessage",
-             PostToRIL<0>, 1, 0);
-  else
-    return !!JS_DefineFunction(aCx, workerGlobal, "postRILMessage",
-             PostToRIL<1>, 1, 0);
+//  if (mSubId == 0) 
+//    return !!JS_DefineFunction(aCx, workerGlobal, "postRILMessage",
+//             PostToRIL<0>, 1, 0);
+//  else
+//    return !!JS_DefineFunction(aCx, workerGlobal, "postRILMessage",
+//             PostToRIL<1>, 1, 0);
 }
 
 class RILReceiver : public RilConsumer
