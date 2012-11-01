@@ -173,7 +173,8 @@ XPCOMUtils.defineLazyGetter(this, "gAudioManager", function getAudioManager() {
 });
 
 
-function RadioInterfaceLayer() {
+function RadioInterfaceLayer(subscriptionId) {
+  this.subscriptionId = subscriptionId;
   this.dataNetworkInterface = new RILNetworkInterface(this, Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE);
   this.mmsNetworkInterface = new RILNetworkInterface(this, Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE_MMS);
   this.suplNetworkInterface = new RILNetworkInterface(this, Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE_SUPL);
@@ -264,16 +265,6 @@ function RadioInterfaceLayer() {
   // registered contents can receive related messages.
   this._messageManagerByPermission = {};
 
-  ppmm.addMessageListener("child-process-shutdown", this);
-  for (let msgname of RIL_IPC_TELEPHONY_MSG_NAMES) {
-    ppmm.addMessageListener(msgname, this);
-  }
-  for (let msgname of RIL_IPC_MOBILECONNECTION_MSG_NAMES) {
-    ppmm.addMessageListener(msgname, this);
-  }
-  for (let msgname of RIL_IPC_VOICEMAIL_MSG_NAMES) {
-    ppmm.addMessageListener(msgname, this);
-  }
   Services.obs.addObserver(this, "xpcom-shutdown", false);
   Services.obs.addObserver(this, kMozSettingsChangedObserverTopic, false);
   Services.obs.addObserver(this, kSysMsgListenerReadyObserverTopic, false);
@@ -658,6 +649,7 @@ RadioInterfaceLayer.prototype = {
       return;
     }
 
+    options.subscriptionId = this.subscriptionId;
     for each (let target in targets) {
       target.sendAsyncMessage(message, options);
     }
@@ -1456,16 +1448,6 @@ RadioInterfaceLayer.prototype = {
         this.handle(setting.key, setting.value);
         break;
       case "xpcom-shutdown":
-        ppmm.removeMessageListener("child-process-shutdown", this);
-        for (let msgname of RIL_IPC_TELEPHONY_MSG_NAMES) {
-          ppmm.removeMessageListener(msgname, this);
-        }
-        for (let msgname of RIL_IPC_MOBILECONNECTION_MSG_NAMES) {
-          ppmm.removeMessageListener(msgname, this);
-        }
-        for (let msgname of RIL_IPC_VOICEMAIL_MSG_NAMES) {
-          ppmm.removeMessageListener(msgname, this);
-        }
         // Shutdown all RIL network interfaces
         this.dataNetworkInterface.shutdown();
         this.mmsNetworkInterface.shutdown();
@@ -2562,8 +2544,25 @@ RILNetworkInterface.prototype = {
 
 function MSimRadioInterfaceLayer() {
   debug("Starting MSimRIL");
-  //TODO id
-  this.mRILs = [new RadioInterfaceLayer(), new RadioInterfaceLayer()];
+  this.mRILs = [];
+
+  //TODO read from settings
+  const NUM_RILS = 2;
+  for (let i = 0; i < NUM_RILS; i++) {
+    this.mRILs.push(new RadioInterfaceLayer(i));
+  }
+
+  ppmm.addMessageListener("child-process-shutdown", this);
+  for (let msgname of RIL_IPC_TELEPHONY_MSG_NAMES) {
+    ppmm.addMessageListener(msgname, this);
+  }
+  for (let msgname of RIL_IPC_MOBILECONNECTION_MSG_NAMES) {
+    ppmm.addMessageListener(msgname, this);
+  }
+  for (let msgname of RIL_IPC_VOICEMAIL_MSG_NAMES) {
+    ppmm.addMessageListener(msgname, this);
+  }
+
 };
 MSimRadioInterfaceLayer.prototype = {
   classID:   MSIMRADIOINTERFACELAYER_CID,
@@ -2574,10 +2573,19 @@ MSimRadioInterfaceLayer.prototype = {
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIMSimWorkerHolder,
                                          Ci.nsIMSimRadioInterfaceLayer]),
 
+  receiveMessage: function receiveMessage(msg) {
+    debug("MSim Received '" + msg.name + "' message from content process");
+    debug("msg = "+JSON.stringify(msg));
+    //TODO currently content hasn't added subscriptionId yet
+    let id = msg.json ? msg.json.subscriptionId : 0;
+    this.mRILs[/*msg.json.subscriptionId*/id].receiveMessage(msg);
+  },
+
   getWorker: function getWorker(i) {
     debug("getWorker "+i);
     return this.mRILs[i].worker;
-  }
+  },
+
 };
 
 const NSGetFactory = XPCOMUtils.generateNSGetFactory([RadioInterfaceLayer,
