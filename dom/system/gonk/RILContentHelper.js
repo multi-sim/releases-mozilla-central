@@ -476,17 +476,17 @@ RILContentHelper.prototype = {
 
   _callbackManagerBySim: null,
 
-  registerCallback: function registerCallback(simId, callbackType, callback) {
+  registerCallback: function registerCallback(subscriptionId, callbackType, callback) {
     if (callbackType == "_telephonyCallbacks") {
-      let mgr = this._callbackManagerBySim[simId]
+      let mgr = this._callbackManagerBySim[subscriptionId]
       if (!mgr) {
         // No callback manager for this SIM.
-        mgr = this._callbackManagerBySim[simId] = [];
+        mgr = this._callbackManagerBySim[subscriptionId] = [];
       }
       
       let callbacks = mgr[callbackType];
       if (!callbacks) {
-        callbacks = this._callbackManagerBySim[simId][callbackType] = [];
+        callbacks = this._callbackManagerBySim[subscriptionId][callbackType] = [];
       }
       if (callbacks.indexOf(callback) != -1) {
         debug("Already registered this telephonyCallback.");
@@ -511,10 +511,10 @@ RILContentHelper.prototype = {
     }
   },
 
-  unregisterCallback: function unregisterCallback(simId, callbackType, callback) {
+  unregisterCallback: function unregisterCallback(subscriptionId, callbackType, callback) {
     let callbacks;
     if (callbackType == "_telephonyCallbacks") {
-      callbacks = this._callbackManagerBySim[simId][callbackType];
+      callbacks = this._callbackManagerBySim[subscriptionId][callbackType];
     } else {
       callbacks = this[callbackType];
     }
@@ -530,12 +530,12 @@ RILContentHelper.prototype = {
     }
   },
 
-  registerTelephonyCallback: function registerTelephonyCallback(simId, callback) {
-    this.registerCallback(simId, "_telephonyCallbacks", callback);
+  registerTelephonyCallback: function registerTelephonyCallback(subscriptionId, callback) {
+    this.registerCallback(subscriptionId, "_telephonyCallbacks", callback);
   },
 
-  unregisterTelephonyCallback: function unregisteTelephonyCallback(simId, callback) {
-    this.unregisterCallback(simId, "_telephonyCallbacks", callback);
+  unregisterTelephonyCallback: function unregisteTelephonyCallback(subscriptionId, callback) {
+    this.unregisterCallback(subscriptionId, "_telephonyCallbacks", callback);
   },
 
   registerVoicemailCallback: function registerVoicemailCallback(callback) {
@@ -546,8 +546,8 @@ RILContentHelper.prototype = {
     this.unregisterCallback(0, "_voicemailCallbacks", callback);
   },
 
-  registerTelephonyMsg: function registerTelephonyMsg(simId) {
-    cpmm.sendAsyncMessage("RIL:RegisterTelephonyMsg", {simId: simId});
+  registerTelephonyMsg: function registerTelephonyMsg(subscriptionId) {
+    cpmm.sendAsyncMessage("RIL:RegisterTelephonyMsg", {subscriptionId: subscriptionId});
   },
 
   registerMobileConnectionMsg: function registerMobileConnectionMsg() {
@@ -572,45 +572,45 @@ RILContentHelper.prototype = {
     this._enumerateTelephonyCallbacks.push(callback);
   },
 
-  startTone: function startTone(simId, dtmfChar) {
+  startTone: function startTone(subscriptionId, dtmfChar) {
     debug("Sending Tone for " + dtmfChar);
-    cpmm.sendAsyncMessage("RIL:StartTone", {simId: simId, dtmfChar: dtmfChar});
+    cpmm.sendAsyncMessage("RIL:StartTone", {subscriptionId: subscriptionId, dtmfChar: dtmfChar});
   },
 
-  stopTone: function stopTone(simId) {
+  stopTone: function stopTone(subscriptionId) {
     debug("Stopping Tone");
-    cpmm.sendAsyncMessage("RIL:StopTone", {simId: simId});
+    cpmm.sendAsyncMessage("RIL:StopTone", {subscriptionId: subscriptionId});
   },
 
-  dial: function dial(simId, number) {
-    debug("Dialing no. " + simId + " " + number);
-    cpmm.sendAsyncMessage("RIL:Dial", {simId: simId, number: number});
+  dial: function dial(subscriptionId, number) {
+    debug("Dialing no. " + subscriptionId + " " + number);
+    cpmm.sendAsyncMessage("RIL:Dial", {subscriptionId: subscriptionId, number: number});
   },
 
-  dialEmergency: function dialEmergency(simId, number) {
+  dialEmergency: function dialEmergency(subscriptionId, number) {
     debug("Dialing emergency " + number);
-    cpmm.sendAsyncMessage("RIL:DialEmergency", {simId: simId, number: number});
+    cpmm.sendAsyncMessage("RIL:DialEmergency", {subscriptionId: subscriptionId, number: number});
   },
 
-  hangUp: function hangUp(simId, callIndex) {
+  hangUp: function hangUp(subscriptionId, callIndex) {
     debug("Hanging up call no. " + callIndex);
-    cpmm.sendAsyncMessage("RIL:HangUp", {simId: simId, callIndex: callIndex});
+    cpmm.sendAsyncMessage("RIL:HangUp", {subscriptionId: subscriptionId, callIndex: callIndex});
   },
 
-  answerCall: function answerCall(simId, callIndex) {
-    cpmm.sendAsyncMessage("RIL:AnswerCall", {simId: simId, callIndex: callIndex});
+  answerCall: function answerCall(subscriptionId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:AnswerCall", {subscriptionId: subscriptionId, callIndex: callIndex});
   },
 
-  rejectCall: function rejectCall(simId, callIndex) {
-    cpmm.sendAsyncMessage("RIL:RejectCall", {simId: simId, callIndex: callIndex});
+  rejectCall: function rejectCall(subscriptionId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:RejectCall", {subscriptionId: subscriptionId, callIndex: callIndex});
   },
 
-  holdCall: function holdCall(simId, callIndex) {
-    cpmm.sendAsyncMessage("RIL:HoldCall", {simId: simId, callIndex: callIndex});
+  holdCall: function holdCall(subscriptionId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:HoldCall", {subscriptionId: subscriptionId, callIndex: callIndex});
   },
 
-  resumeCall: function resumeCall(simId, callIndex) {
-    cpmm.sendAsyncMessage("RIL:ResumeCall", {simId: simId, callIndex: callIndex});
+  resumeCall: function resumeCall(subscriptionId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:ResumeCall", {subscriptionId: subscriptionId, callIndex: callIndex});
   },
 
   get microphoneMuted() {
@@ -722,14 +722,14 @@ RILContentHelper.prototype = {
                                  RIL.GECKO_NETWORK_SELECTION_AUTOMATIC);
         break;
       case "RIL:CallStateChanged":
-        this._deliverCallback(msg.json.simId,
+        this._deliverCallback(msg.json.subscriptionId,
                               "_telephonyCallbacks",
                               "callStateChanged",
                               [msg.json.call.callIndex, msg.json.call.state,
                                msg.json.call.number, msg.json.call.isActive]);
         break;
       case "RIL:CallError":
-        this._deliverCallback(msg.json.simId,
+        this._deliverCallback(msg.json.subscriptionId,
                               "_telephonyCallbacks",
                               "notifyError",
                               [msg.json.message.callIndex,
@@ -891,10 +891,10 @@ RILContentHelper.prototype = {
     return gUUIDGenerator.generateUUID().toString();
   },
 
-  _deliverCallback: function _deliverCallback(simId, callbackType, name, args) {
-    debug("XXX _deliverCallback: simId: " + simId + " type: " + callbackType);
+  _deliverCallback: function _deliverCallback(subscriptionId, callbackType, name, args) {
+    debug("XXX _deliverCallback: subscriptionId: " + subscriptionId + " type: " + callbackType);
     if (callbackType == "_telephonyCallbacks") {
-      let thisCallbacks = this._callbackManagerBySim[simId][callbackType];
+      let thisCallbacks = this._callbackManagerBySim[subscriptionId][callbackType];
       if (!thisCallbacks) {
       } else {
         let callbacks = thisCallbacks.slice();

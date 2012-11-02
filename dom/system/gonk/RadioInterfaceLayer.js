@@ -1110,7 +1110,7 @@ RadioInterfaceLayer.prototype = {
       this._activeCall = null;
     }
     this.updateCallAudioState();
-    this._sendTelephonyMessage("RIL:CallStateChanged", {simId: 0, call: call});
+    this._sendTelephonyMessage("RIL:CallStateChanged", {subscriptionId: 0, call: call});
   },
 
   /**
@@ -1123,7 +1123,7 @@ RadioInterfaceLayer.prototype = {
     }
     this.updateCallAudioState();
     call.state = nsIRadioInterfaceLayer.CALL_STATE_DISCONNECTED;
-    this._sendTelephonyMessage("RIL:CallStateChanged", {simId: 0, call: call});
+    this._sendTelephonyMessage("RIL:CallStateChanged", {subscriptionId: 0, call: call});
   },
 
   /**
@@ -1174,7 +1174,7 @@ RadioInterfaceLayer.prototype = {
    * Handle call error.
    */
   handleCallError: function handleCallError(message) {
-    this._sendTelephonyMessage("RIL:CallError", {simId: 0, message: message});
+    this._sendTelephonyMessage("RIL:CallError", {subscriptionId: 0, message: message});
   },
 
   /**
