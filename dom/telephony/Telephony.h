@@ -65,41 +65,26 @@ public:
 
   void 
   AddCall(TelephonyCall* aCall);
-  /*
-  {
-    NS_ASSERTION(!mCalls.Contains(aCall), "Already know about this one!");
-    mTelephonyManager->AddCall(aCall);
-    mCalls.AppendElement(aCall);
-    mCallsArray = nullptr;
-    NotifyCallsChanged(aCall);
-  }
-*/
+
   void
   RemoveCall(TelephonyCall* aCall);
-  /*
-  {
-    NS_ASSERTION(mCalls.Contains(aCall), "Didn't know about this one!");
-    mTelephonyManager->RemoveCall(aCall);
-    mCalls.RemoveElement(aCall);
-    mCallsArray = nullptr;
-    NotifyCallsChanged(aCall);
-  }
-*/
+
   nsIRILContentHelper*
   RIL() const
   {
     return mRIL;
   }
 
+  uint32_t PhoneIndex() const
+  {
+    return mPhoneIndex;
+  }
 private:
   Telephony();
   ~Telephony();
 
   already_AddRefed<TelephonyCall>
   CreateNewDialingCall(const nsAString& aNumber);
-
-  void
-  NoteDialedCallFromOtherInstance(const nsAString& aNumber);
 
   nsresult
   NotifyCallsChanged(TelephonyCall* aCall);

@@ -222,6 +222,7 @@ function RILContentHelper() {
   this.updateICCInfo(rilContext.icc, this.iccInfo);
   this.updateConnectionInfo(rilContext.voice, this.voiceConnectionInfo);
   this.updateConnectionInfo(rilContext.data, this.dataConnectionInfo);
+  this._callbackManagerBySim = {};
 }
 
 RILContentHelper.prototype = {
@@ -473,22 +474,51 @@ RILContentHelper.prototype = {
   voicemailNumber: null,
   voicemailDisplayName: null,
 
-  registerCallback: function registerCallback(callbackType, callback) {
-    let callbacks = this[callbackType];
-    if (!callbacks) {
-      callbacks = this[callbackType] = [];
-    }
+  _callbackManagerBySim: null,
 
-    if (callbacks.indexOf(callback) != -1) {
-      throw new Error("Already registered this callback!");
-    }
+  registerCallback: function registerCallback(simId, callbackType, callback) {
+    if (callbackType == "_telephonyCallbacks") {
+      let mgr = this._callbackManagerBySim[simId]
+      if (!mgr) {
+        // No callback manager for this SIM.
+        mgr = this._callbackManagerBySim[simId] = [];
+      }
+      
+      let callbacks = mgr[callbackType];
+      if (!callbacks) {
+        callbacks = this._callbackManagerBySim[simId][callbackType] = [];
+      }
+      if (callbacks.indexOf(callback) != -1) {
+        debug("Already registered this telephonyCallback.");
+        return;
+      }
+      
+      callbacks.push(callback);
+      debug("Registered " + callbackType + "callback: " + callback);
+    } else {
+      // ++++++++ original ++++++++++
+      let callbacks = this[callbackType];
+      if (!callbacks) {
+        callbacks = this[callbackType] = [];
+      }
 
-    callbacks.push(callback);
-    if (DEBUG) debug("Registered " + callbackType + " callback: " + callback);
+      if (callbacks.indexOf(callback) != -1) {
+        throw new Error("Already registered this callback!");
+      }
+
+      callbacks.push(callback);
+      if (DEBUG) debug("Registered " + callbackType + " callback: " + callback + "no. " + callbacks.length);
+    }
   },
 
-  unregisterCallback: function unregisterCallback(callbackType, callback) {
-    let callbacks = this[callbackType];
+  unregisterCallback: function unregisterCallback(simId, callbackType, callback) {
+    let callbacks;
+    if (callbackType == "_telephonyCallbacks") {
+      callbacks = this._callbackManagerBySim[simId][callbackType];
+    } else {
+      callbacks = this[callbackType];
+    }
+
     if (!callbacks) {
       return;
     }
@@ -496,28 +526,28 @@ RILContentHelper.prototype = {
     let index = callbacks.indexOf(callback);
     if (index != -1) {
       callbacks.splice(index, 1);
-      if (DEBUG) debug("Unregistered telephony callback: " + callback);
+      if (DEBUG) debug("Unregistered " + callbackType + " callback: " + callback);
     }
   },
 
-  registerTelephonyCallback: function registerTelephonyCallback(callback) {
-    this.registerCallback("_telephonyCallbacks", callback);
+  registerTelephonyCallback: function registerTelephonyCallback(simId, callback) {
+    this.registerCallback(simId, "_telephonyCallbacks", callback);
   },
 
-  unregisterTelephonyCallback: function unregisteTelephonyCallback(callback) {
-    this.unregisterCallback("_telephonyCallbacks", callback);
+  unregisterTelephonyCallback: function unregisteTelephonyCallback(simId, callback) {
+    this.unregisterCallback(simId, "_telephonyCallbacks", callback);
   },
 
   registerVoicemailCallback: function registerVoicemailCallback(callback) {
-    this.registerCallback("_voicemailCallbacks", callback);
+    this.registerCallback(0, "_voicemailCallbacks", callback);
   },
 
   unregisterVoicemailCallback: function unregisteVoicemailCallback(callback) {
-    this.unregisterCallback("_voicemailCallbacks", callback);
+    this.unregisterCallback(0, "_voicemailCallbacks", callback);
   },
 
-  registerTelephonyMsg: function registerTelephonyMsg() {
-    cpmm.sendAsyncMessage("RIL:RegisterTelephonyMsg");
+  registerTelephonyMsg: function registerTelephonyMsg(simId) {
+    cpmm.sendAsyncMessage("RIL:RegisterTelephonyMsg", {simId: simId});
   },
 
   registerMobileConnectionMsg: function registerMobileConnectionMsg() {
@@ -536,51 +566,51 @@ RILContentHelper.prototype = {
     // protocol.
     let requestId = this._getRandomId();
     cpmm.sendAsyncMessage("RIL:EnumerateCalls", {requestId: requestId});
-    if (!this._enumerationTelephonyCallbacks) {
-      this._enumerationTelephonyCallbacks = [];
+    if (!this._enumerateTelephonyCallbacks) {
+      this._enumerateTelephonyCallbacks = [];
     }
-    this._enumerationTelephonyCallbacks.push(callback);
+    this._enumerateTelephonyCallbacks.push(callback);
   },
 
-  startTone: function startTone(dtmfChar) {
+  startTone: function startTone(simId, dtmfChar) {
     debug("Sending Tone for " + dtmfChar);
-    cpmm.sendAsyncMessage("RIL:StartTone", dtmfChar);
+    cpmm.sendAsyncMessage("RIL:StartTone", {simId: simId, dtmfChar: dtmfChar});
   },
 
-  stopTone: function stopTone() {
+  stopTone: function stopTone(simId) {
     debug("Stopping Tone");
-    cpmm.sendAsyncMessage("RIL:StopTone");
+    cpmm.sendAsyncMessage("RIL:StopTone", {simId: simId});
   },
 
-  dial: function dial(number) {
-    debug("Dialing " + number);
-    cpmm.sendAsyncMessage("RIL:Dial", number);
+  dial: function dial(simId, number) {
+    debug("Dialing no. " + simId + " " + number);
+    cpmm.sendAsyncMessage("RIL:Dial", {simId: simId, number: number});
   },
 
-  dialEmergency: function dialEmergency(number) {
+  dialEmergency: function dialEmergency(simId, number) {
     debug("Dialing emergency " + number);
-    cpmm.sendAsyncMessage("RIL:DialEmergency", number);
+    cpmm.sendAsyncMessage("RIL:DialEmergency", {simId: simId, number: number});
   },
 
-  hangUp: function hangUp(callIndex) {
+  hangUp: function hangUp(simId, callIndex) {
     debug("Hanging up call no. " + callIndex);
-    cpmm.sendAsyncMessage("RIL:HangUp", callIndex);
+    cpmm.sendAsyncMessage("RIL:HangUp", {simId: simId, callIndex: callIndex});
   },
 
-  answerCall: function answerCall(callIndex) {
-    cpmm.sendAsyncMessage("RIL:AnswerCall", callIndex);
+  answerCall: function answerCall(simId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:AnswerCall", {simId: simId, callIndex: callIndex});
   },
 
-  rejectCall: function rejectCall(callIndex) {
-    cpmm.sendAsyncMessage("RIL:RejectCall", callIndex);
+  rejectCall: function rejectCall(simId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:RejectCall", {simId: simId, callIndex: callIndex});
   },
 
-  holdCall: function holdCall(callIndex) {
-    cpmm.sendAsyncMessage("RIL:HoldCall", callIndex);
+  holdCall: function holdCall(simId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:HoldCall", {simId: simId, callIndex: callIndex});
   },
 
-  resumeCall: function resumeCall(callIndex) {
-    cpmm.sendAsyncMessage("RIL:ResumeCall", callIndex);
+  resumeCall: function resumeCall(simId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:ResumeCall", {simId: simId, callIndex: callIndex});
   },
 
   get microphoneMuted() {
@@ -692,16 +722,18 @@ RILContentHelper.prototype = {
                                  RIL.GECKO_NETWORK_SELECTION_AUTOMATIC);
         break;
       case "RIL:CallStateChanged":
-        this._deliverCallback("_telephonyCallbacks",
+        this._deliverCallback(msg.json.simId,
+                              "_telephonyCallbacks",
                               "callStateChanged",
-                              [msg.json.callIndex, msg.json.state,
-                               msg.json.number, msg.json.isActive]);
+                              [msg.json.call.callIndex, msg.json.call.state,
+                               msg.json.call.number, msg.json.call.isActive]);
         break;
       case "RIL:CallError":
-        this._deliverCallback("_telephonyCallbacks",
+        this._deliverCallback(msg.json.simId,
+                              "_telephonyCallbacks",
                               "notifyError",
-                              [msg.json.callIndex,
-                               msg.json.error]);
+                              [msg.json.message.callIndex,
+                               msg.json.message.error]);
         break;
       case "RIL:VoicemailNotification":
         this.handleVoicemailNotification(msg.json);
@@ -760,7 +792,7 @@ RILContentHelper.prototype = {
 
   handleEnumerateCalls: function handleEnumerateCalls(calls) {
     debug("handleEnumerateCalls: " + JSON.stringify(calls));
-    let callback = this._enumerationTelephonyCallbacks.shift();
+    let callback = this._enumerateTelephonyCallbacks.shift();
     for (let i in calls) {
       let call = calls[i];
       let keepGoing;
@@ -848,7 +880,8 @@ RILContentHelper.prototype = {
     }
 
     if (changed) {
-      this._deliverCallback("_voicemailCallbacks",
+      this._deliverCallback(0,
+                            "_voicemailCallbacks",
                             "voicemailNotification",
                             [this.voicemailStatus]);
     }
@@ -858,25 +891,47 @@ RILContentHelper.prototype = {
     return gUUIDGenerator.generateUUID().toString();
   },
 
-  _deliverCallback: function _deliverCallback(callbackType, name, args) {
-    let thisCallbacks = this[callbackType];
-    if (!thisCallbacks) {
-      return;
-    }
+  _deliverCallback: function _deliverCallback(simId, callbackType, name, args) {
+    debug("XXX _deliverCallback: simId: " + simId + " type: " + callbackType);
+    if (callbackType == "_telephonyCallbacks") {
+      let thisCallbacks = this._callbackManagerBySim[simId][callbackType];
+      if (!thisCallbacks) {
+      } else {
+        let callbacks = thisCallbacks.slice();
+        for each (let callback in callbacks) {
+          let handler = callback[name];
+          if (typeof handler != "function") {
+            throw new Error("No handler for " + name);
+          }
 
-    let callbacks = thisCallbacks.slice();
-    for each (let callback in callbacks) {
-      if (thisCallbacks.indexOf(callback) == -1) {
-        continue;
+          try {
+            handler.apply(callback, args);
+          } catch (e) {
+            debug("callback handler for " + name + " threw an exception: " + e);
+          }
+        }
       }
-      let handler = callback[name];
-      if (typeof handler != "function") {
-        throw new Error("No handler for " + name);
+    } else {
+      // +++++ original +++++
+      let thisCallbacks = this[callbackType];
+      if (!thisCallbacks) {
+        return;
       }
-      try {
-        handler.apply(callback, args);
-      } catch (e) {
-        debug("callback handler for " + name + " threw an exception: " + e);
+
+      let callbacks = thisCallbacks.slice();
+      for each (let callback in callbacks) {
+        if (thisCallbacks.indexOf(callback) == -1) {
+          continue;
+        }
+        let handler = callback[name];
+        if (typeof handler != "function") {
+          throw new Error("No handler for " + name);
+        }
+        try {
+          handler.apply(callback, args);
+        } catch (e) {
+          debug("callback handler for " + name + " threw an exception: " + e);
+        }
       }
     }
   }

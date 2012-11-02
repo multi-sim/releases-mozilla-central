@@ -192,7 +192,7 @@ TelephonyCall::Answer()
     return NS_OK;
   }
 
-  nsresult rv = mTelephony->RIL()->AnswerCall(mCallIndex);
+  nsresult rv = mTelephony->RIL()->AnswerCall(mTelephony->PhoneIndex(), mCallIndex);
   NS_ENSURE_SUCCESS(rv, rv);
 
   ChangeStateInternal(nsIRadioInterfaceLayer::CALL_STATE_CONNECTING, true);
@@ -209,8 +209,8 @@ TelephonyCall::HangUp()
   }
 
   nsresult rv = mCallState == nsIRadioInterfaceLayer::CALL_STATE_INCOMING ?
-                mTelephony->RIL()->RejectCall(mCallIndex) :
-                mTelephony->RIL()->HangUp(mCallIndex);
+                mTelephony->RIL()->RejectCall(mTelephony->PhoneIndex(), mCallIndex) :
+                mTelephony->RIL()->HangUp(mTelephony->PhoneIndex(), mCallIndex);
   NS_ENSURE_SUCCESS(rv, rv);
 
   ChangeStateInternal(nsIRadioInterfaceLayer::CALL_STATE_DISCONNECTING, true);
@@ -225,7 +225,7 @@ TelephonyCall::Hold()
     return NS_OK;
   }
   
-  nsresult rv = mTelephony->RIL()->HoldCall(mCallIndex);
+  nsresult rv = mTelephony->RIL()->HoldCall(mTelephony->PhoneIndex(), mCallIndex);
   NS_ENSURE_SUCCESS(rv,rv);
   
   ChangeStateInternal(nsIRadioInterfaceLayer::CALL_STATE_HOLDING, true);
@@ -240,7 +240,7 @@ TelephonyCall::Resume()
     return NS_OK;
   }
   
-  nsresult rv = mTelephony->RIL()->ResumeCall(mCallIndex);
+  nsresult rv = mTelephony->RIL()->ResumeCall(mTelephony->PhoneIndex(), mCallIndex);
   NS_ENSURE_SUCCESS(rv,rv);
   
   ChangeStateInternal(nsIRadioInterfaceLayer::CALL_STATE_RESUMING, true);

@@ -354,31 +354,31 @@ RadioInterfaceLayer.prototype = {
         this.speakerEnabled = msg.json;
         break;
       case "RIL:StartTone":
-        this.startTone(msg.json);
+        this.startTone(msg.json.dtmfChar);
         break;
       case "RIL:StopTone":
         this.stopTone();
         break;
       case "RIL:Dial":
-        this.dial(msg.json);
+        this.dial(msg.json.number);
         break;
       case "RIL:DialEmergency":
-        this.dialEmergency(msg.json);
+        this.dialEmergency(msg.json.number);
         break;
       case "RIL:HangUp":
-        this.hangUp(msg.json);
+        this.hangUp(msg.json.callIndex);
         break;
       case "RIL:AnswerCall":
-        this.answerCall(msg.json);
+        this.answerCall(msg.json.callIndex);
         break;
       case "RIL:RejectCall":
-        this.rejectCall(msg.json);
+        this.rejectCall(msg.json.callIndex);
         break;
       case "RIL:HoldCall":
-        this.holdCall(msg.json);
+        this.holdCall(msg.json.callIndex);
         break;
       case "RIL:ResumeCall":
-        this.resumeCall(msg.json);
+        this.resumeCall(msg.json.callIndex);
         break;
       case "RIL:RegisterTelephonyMsg":
         this.registerTelephonyTarget(msg.target);
@@ -1110,7 +1110,7 @@ RadioInterfaceLayer.prototype = {
       this._activeCall = null;
     }
     this.updateCallAudioState();
-    this._sendTelephonyMessage("RIL:CallStateChanged", call);
+    this._sendTelephonyMessage("RIL:CallStateChanged", {simId: 0, call: call});
   },
 
   /**
@@ -1123,7 +1123,7 @@ RadioInterfaceLayer.prototype = {
     }
     this.updateCallAudioState();
     call.state = nsIRadioInterfaceLayer.CALL_STATE_DISCONNECTED;
-    this._sendTelephonyMessage("RIL:CallStateChanged", call);
+    this._sendTelephonyMessage("RIL:CallStateChanged", {simId: 0, call: call});
   },
 
   /**
@@ -1174,7 +1174,7 @@ RadioInterfaceLayer.prototype = {
    * Handle call error.
    */
   handleCallError: function handleCallError(message) {
-    this._sendTelephonyMessage("RIL:CallError", message);
+    this._sendTelephonyMessage("RIL:CallError", {simId: 0, message: message});
   },
 
   /**

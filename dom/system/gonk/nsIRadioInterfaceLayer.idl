@@ -142,8 +142,8 @@ interface nsIRILContactCallback : nsISupports
 [scriptable, uuid(2abe554b-e07c-44b0-9719-02190460188d)]
 interface nsIRILContentHelper : nsIMobileConnectionProvider
 {
-  void registerTelephonyCallback(in nsIRILTelephonyCallback callback);
-  void unregisterTelephonyCallback(in nsIRILTelephonyCallback callback);
+  void registerTelephonyCallback(in unsigned long simId, in nsIRILTelephonyCallback callback);
+  void unregisterTelephonyCallback(in unsigned long simId, in nsIRILTelephonyCallback callback);
 
   void registerVoicemailCallback(in nsIRILVoicemailCallback callback);
   void unregisterVoicemailCallback(in nsIRILVoicemailCallback callback);
@@ -155,7 +155,7 @@ interface nsIRILContentHelper : nsIMobileConnectionProvider
    * unregister because the chrome process will remove it from the registration
    * list once the chrome receives a 'child-process-shutdown' message.
    */
-   void registerTelephonyMsg();
+   void registerTelephonyMsg(in unsigned long simId);
 
   /**
    * Called when a content process registers receiving unsolicited messages from
@@ -175,17 +175,17 @@ interface nsIRILContentHelper : nsIMobileConnectionProvider
   /**
    * Functionality for making and managing phone calls.
    */
-  void dial(in DOMString number);
-  void dialEmergency(in DOMString number);
-  void hangUp(in unsigned long callIndex);
+  void dial(in unsigned long simId, in DOMString number);
+  void dialEmergency(in unsigned long simId, in DOMString number);
+  void hangUp(in unsigned long simId, in unsigned long callIndex);
 
-  void startTone(in DOMString dtmfChar);
-  void stopTone();
+  void startTone(in unsigned long simId, in DOMString dtmfChar);
+  void stopTone(in unsigned long simId);
 
-  void answerCall(in unsigned long callIndex);
-  void rejectCall(in unsigned long callIndex);
-  void holdCall(in unsigned long callIndex);
-  void resumeCall(in unsigned long callIndex);
+  void answerCall(in unsigned long simId, in unsigned long callIndex);
+  void rejectCall(in unsigned long simId, in unsigned long callIndex);
+  void holdCall(in unsigned long simId, in unsigned long callIndex);
+  void resumeCall(in unsigned long simId, in unsigned long callIndex);
 
   attribute bool microphoneMuted;
   attribute bool speakerEnabled;

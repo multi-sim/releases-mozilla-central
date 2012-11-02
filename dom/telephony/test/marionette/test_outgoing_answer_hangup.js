@@ -43,7 +43,7 @@ function dial() {
 
   is(outgoing, telephony.active);
   //ok(telephony.calls === calls); // bug 717414
-  //is(mgr.calls.length, 1);
+  is(mgr.calls.length, 1);
   is(telephony.calls.length, 1);
   is(mgr.calls[0], outgoing);
   is(telephony.calls[0], outgoing);
@@ -95,7 +95,6 @@ function hangUp() {
     is(outgoing.state, "disconnected");
 
     is(telephony.active, null);
- //   is(mgr.calls.length, 0);
     is(telephony.calls.length, 0);
 
     runEmulatorCmd("gsm list", function(result) {

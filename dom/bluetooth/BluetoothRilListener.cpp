@@ -72,9 +72,10 @@ BluetoothRilListener::StartListening()
     return false;
   }
 
-  nsresult rv = ril->RegisterTelephonyCallback(mRILTelephonyCallback);
+  //nsresult rv = ril->RegisterTelephonyCallback(mRILTelephonyCallback);
 
-  return NS_FAILED(rv) ? false : true;
+  //return NS_FAILED(rv) ? false : true;
+  return false;
 }
 
 bool
@@ -86,9 +87,10 @@ BluetoothRilListener::StopListening()
     return false;
   }
 
-  nsresult rv = ril->UnregisterTelephonyCallback(mRILTelephonyCallback);
+  //nsresult rv = ril->UnregisterTelephonyCallback(mRILTelephonyCallback);
 
-  return NS_FAILED(rv) ? false : true;
+  //return NS_FAILED(rv) ? false : true;
+  return false;
 }
 
 nsIRILTelephonyCallback*
