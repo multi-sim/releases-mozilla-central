@@ -2577,7 +2577,7 @@ MSimRadioInterfaceLayer.prototype = {
     debug("MSim Received '" + msg.name + "' message from content process");
     debug("msg = "+JSON.stringify(msg));
     //TODO currently content hasn't added subscriptionId yet
-    let id = msg.json ? msg.json.subscriptionId : 0;
+    let id = (msg.json && msg.json.subscriptionId) || 0;
     this.mRILs[/*msg.json.subscriptionId*/id].receiveMessage(msg);
   },
 
