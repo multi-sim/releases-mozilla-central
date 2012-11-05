@@ -1,0 +1,9 @@
+#!/home/hsinyi/WorkSpace/mozilla/B2G-emu/gecko/testing/marionette/client/marionette_venv/bin/python
+# EASY-INSTALL-ENTRY-SCRIPT: 'marionette-client==0.5.2','console_scripts','marionette'
+__requires__ = 'marionette-client==0.5.2'
+import sys
+from pkg_resources import load_entry_point
+
+sys.exit(
+   load_entry_point('marionette-client==0.5.2', 'console_scripts', 'marionette')()
+)

@@ -1,0 +1,188 @@
+D/RILPROXY(   44): rilproxyd trigger file not found, listening on /dev/socket/rilproxy
+D/RILPROXY(   44): Converted to radio account
+D/RILPROXY(   44): Waiting on socket
+D/RILD    (   36): client = 0
+D/RILD    (   36): overriding with -s /dev/socket/qemud
+I/RIL     (   36): Opening socket /dev/socket/qemud
+E/RILC    (   36): RIL_register: RIL version 6
+D/AT      (   36): AT> ATE0Q0V1
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> ATE0Q0V1
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> ATS0=0
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> AT+CMEE=1
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> AT+CREG=2
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> AT+CGREG=1
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> AT+CCWA=1
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> AT+CMOD=0
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> AT+CMUT=0
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> AT+CSSN=0,1
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> AT+COLP=0
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> AT+CSCS="HEX"
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> AT+CUSD=1
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> AT+CGEREP=1,0
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> AT+CMGF=0
+D/AT      (   36): AT< %CTZV: 12/11/02:09:12:14+32:0:Asia!Taipei
+D/AT      (   36): AT< OK
+D/AT      (   36): AT> AT+CFUN?
+D/AT      (   36): AT< +CFUN: 0
+D/AT      (   36): AT< OK
+D/RILPROXY(   44): Socket connected
+D/RILPROXY(   44): Connecting to socket rild
+D/RILPROXY(   44): Connected to socket rild
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+I/RILC    (   36): libril: new connection
+I/RILC    (   36): RIL Daemon version: android reference-ril 1.0
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory
+D/RILPROXY(   44): Connecting to socket rild1
+E/RILPROXY(   44): Could not connect to rild1 socket, retrying: No such file or directory

@@ -22,10 +22,8 @@ class nsCycleCollectionParticipant;
 // bindings.
 #define DOM_XRAY_EXPANDO_SLOT 1
 
-// All DOM globals must have a slot at DOM_PROTOTYPE_SLOT. We have to
-// start at 1 past JSCLASS_GLOBAL_SLOT_COUNT because XPConnect uses
-// that one.
-#define DOM_PROTOTYPE_SLOT (JSCLASS_GLOBAL_SLOT_COUNT + 1)
+// All DOM globals must have a slot at DOM_PROTOTYPE_SLOT.
+#define DOM_PROTOTYPE_SLOT JSCLASS_GLOBAL_SLOT_COUNT
 
 // We use these flag bits for the new bindings.
 #define JSCLASS_DOM_GLOBAL JSCLASS_USERBIT1
@@ -44,6 +42,41 @@ typedef bool
 typedef bool
 (* EnumerateProperties)(JSContext* cx, JSObject* wrapper,
                         JS::AutoIdVector& props);
+
+struct ConstantSpec
+{
+  const char* name;
+  JS::Value value;
+};
+
+template<typename T>
+struct Prefable {
+  // A boolean indicating whether this set of specs is enabled
+  bool enabled;
+  // Array of specs, terminated in whatever way is customary for T.
+  // Null to indicate a end-of-array for Prefable, when such an
+  // indicator is needed.
+  T* specs;
+};
+
+struct NativeProperties
+{
+  Prefable<JSFunctionSpec>* staticMethods;
+  jsid* staticMethodIds;
+  JSFunctionSpec* staticMethodsSpecs;
+  Prefable<JSFunctionSpec>* methods;
+  jsid* methodIds;
+  JSFunctionSpec* methodsSpecs;
+  Prefable<JSPropertySpec>* attributes;
+  jsid* attributeIds;
+  JSPropertySpec* attributeSpecs;
+  Prefable<JSPropertySpec>* unforgeableAttributes;
+  jsid* unforgeableAttributeIds;
+  JSPropertySpec* unforgeableAttributeSpecs;
+  Prefable<ConstantSpec>* constants;
+  jsid* constantIds;
+  ConstantSpec* constantSpecs;
+};
 
 struct NativePropertyHooks
 {
@@ -105,7 +138,7 @@ struct DOMJSClass
 };
 
 inline bool
-HasProtoOrIfaceArray(JSObject* global)
+HasProtoAndIfaceArray(JSObject* global)
 {
   MOZ_ASSERT(js::GetObjectClass(global)->flags & JSCLASS_DOM_GLOBAL);
   // This can be undefined if we GC while creating the global
@@ -113,7 +146,7 @@ HasProtoOrIfaceArray(JSObject* global)
 }
 
 inline JSObject**
-GetProtoOrIfaceArray(JSObject* global)
+GetProtoAndIfaceArray(JSObject* global)
 {
   MOZ_ASSERT(js::GetObjectClass(global)->flags & JSCLASS_DOM_GLOBAL);
   return static_cast<JSObject**>(

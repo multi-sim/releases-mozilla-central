@@ -270,7 +270,8 @@ class nsGlobalWindow : public nsPIDOMWindow,
                        public PRCListStr,
                        public nsIDOMWindowPerformance,
                        public nsITouchEventReceiver,
-                       public nsIInlineEventHandlers
+                       public nsIInlineEventHandlers,
+                       public nsIWindowCrypto
 {
 public:
   friend class nsDOMMozURLProperty;
@@ -334,6 +335,9 @@ public:
 
   // nsIInlineEventHandlers
   NS_DECL_NSIINLINEEVENTHANDLERS
+
+  // nsIWindowCrypto
+  NS_DECL_NSIWINDOWCRYPTO
 
   // nsPIDOMWindow
   virtual NS_HIDDEN_(nsPIDOMWindow*) GetPrivateRoot();
@@ -824,6 +828,8 @@ protected:
   static void MakeScriptDialogTitle(nsAString &aOutTitle);
 
   bool CanMoveResizeWindows();
+
+  bool     GetBlurSuppression();
 
   // If aDoFlush is true, we'll flush our own layout; otherwise we'll try to
   // just flush our parent and only flush ourselves if we think we need to.
