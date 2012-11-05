@@ -62,16 +62,16 @@ TelephonyManager::Create(nsPIDOMWindow* aOwner)
 
   manager->BindToOwner(aOwner);
 
-  for (uint32_t index = 0; index < PHONE_NUMBER; index++) {
-    nsCOMPtr<nsIRILContentHelper> ril =
-      do_CreateInstance(NS_RILCONTENTHELPER_CONTRACTID);
-    NS_ENSURE_TRUE(ril, nullptr);
+  nsCOMPtr<nsIRILContentHelper> ril =
+    do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
+  NS_ENSURE_TRUE(ril, nullptr);
 
+  for (uint32_t index = 0; index < PHONE_NUMBER; index++) {
     nsRefPtr<Telephony> telephony = Telephony::Create(manager, index, ril);
     NS_ENSURE_TRUE(telephony, nullptr);
-    
-    NS_ASSERTION(!(manager->mPhones).Contains(telephony), "Shouldn't be in the list!");
-    (manager->mPhones).AppendElement(telephony);
+
+    NS_ASSERTION(!manager->mPhones.Contains(telephony), "Shouldn't be in the list!");
+    manager->mPhones.AppendElement(telephony);
   }
 
   manager->mDefaultPhone = manager->mPhones[0];
@@ -276,7 +276,6 @@ NS_NewTelephonyManager(nsPIDOMWindow* aWindow,
 
   nsRefPtr<TelephonyManager> manager = TelephonyManager::Create(innerWindow);
   NS_ENSURE_TRUE(manager, NS_ERROR_UNEXPECTED);
-
   manager.forget(aManager);
   return NS_OK;
 }

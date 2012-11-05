@@ -30,15 +30,6 @@
 USING_TELEPHONY_NAMESPACE
 using namespace mozilla::dom::gonk;
 
-/*
-namespace {
-
-typedef nsAutoTArray<Telephony*, 2> TelephonyList;
-
-TelephonyList* gTelephonyList;
-
-} // anonymous namespace
-*/
 Telephony::Telephony()
 : mActiveCall(nullptr), mCallsArray(nullptr), mRooted(false)
 {
@@ -61,13 +52,14 @@ Telephony::Create(TelephonyManager* aTelephonyManager, uint32_t aPhoneIndex, nsI
 {
   NS_ASSERTION(aTelephonyManager, "Null owner!");
   NS_ASSERTION(aRIL, "Null RIL!");
-/*
-  nsCOMPtr<nsIScriptGlobalObject> sgo = do_QueryInterface(aOwner);
+
+  nsCOMPtr<nsIScriptGlobalObject> sgo =
+    do_QueryInterface(aTelephonyManager->GetOwner());
   NS_ENSURE_TRUE(sgo, nullptr);
 
   nsCOMPtr<nsIScriptContext> scriptContext = sgo->GetContext();
   NS_ENSURE_TRUE(scriptContext, nullptr);
-*/
+
   nsRefPtr<Telephony> telephony = new Telephony();
 
   telephony->BindToOwner(aTelephonyManager->GetOwner());
@@ -76,7 +68,8 @@ Telephony::Create(TelephonyManager* aTelephonyManager, uint32_t aPhoneIndex, nsI
   telephony->mRIL = aRIL;
   telephony->mRILTelephonyCallback = new RILTelephonyCallback(telephony);
 
-  nsresult rv = aRIL->RegisterTelephonyMsg(telephony->mPhoneIndex);
+  nsresult rv;
+  rv = aRIL->RegisterTelephonyMsg(telephony->mPhoneIndex);
   NS_ENSURE_SUCCESS(rv, nullptr);
 
   rv = aRIL->RegisterTelephonyCallback(telephony->mPhoneIndex, telephony->mRILTelephonyCallback);
@@ -84,7 +77,6 @@ Telephony::Create(TelephonyManager* aTelephonyManager, uint32_t aPhoneIndex, nsI
 
   rv = aRIL->EnumerateCalls(telephony->mRILTelephonyCallback);
   NS_ENSURE_SUCCESS(rv, nullptr);
-
 
   return telephony.forget();
 }

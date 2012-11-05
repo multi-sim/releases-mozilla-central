@@ -478,7 +478,11 @@ RILContentHelper.prototype = {
 
   registerCallback: function registerCallback(subscriptionId, callbackType, callback) {
     if (callbackType == "_telephonyCallbacks") {
-      let mgr = this._callbackManagerBySim[subscriptionId]
+      if (!this._callbackManagerBySim) {
+        this._callbackManagerBySim = [];
+      }
+
+      let mgr = this._callbackManagerBySim[subscriptionId];
       if (!mgr) {
         // No callback manager for this SIM.
         mgr = this._callbackManagerBySim[subscriptionId] = [];
@@ -547,6 +551,7 @@ RILContentHelper.prototype = {
   },
 
   registerTelephonyMsg: function registerTelephonyMsg(subscriptionId) {
+    debug("Registering for telephony-related messages - subscriptionId: " + subscriptionId);
     cpmm.sendAsyncMessage("RIL:RegisterTelephonyMsg", {subscriptionId: subscriptionId});
   },
 
@@ -687,105 +692,105 @@ RILContentHelper.prototype = {
     debug("Received message '" + msg.name + "': " + JSON.stringify(msg.json));
     switch (msg.name) {
       case "RIL:CardStateChanged":
-        if (this.cardState != msg.json.cardState) {
-          this.cardState = msg.json.cardState;
+        if (this.cardState != msg.json.data.cardState) {
+          this.cardState = msg.json.data.cardState;
           Services.obs.notifyObservers(null, kCardStateChangedTopic, null);
         }
         break;
       case "RIL:IccInfoChanged":
-        this.updateICCInfo(msg.json, this.iccInfo);
+        this.updateICCInfo(msg.json.data, this.iccInfo);
         Services.obs.notifyObservers(null, kIccInfoChangedTopic, null);
         break;
       case "RIL:VoiceInfoChanged":
-        this.updateConnectionInfo(msg.json, this.voiceConnectionInfo);
+        this.updateConnectionInfo(msg.json.data, this.voiceConnectionInfo);
         Services.obs.notifyObservers(null, kVoiceChangedTopic, null);
         break;
       case "RIL:DataInfoChanged":
-        this.updateConnectionInfo(msg.json, this.dataConnectionInfo);
+        this.updateConnectionInfo(msg.json.data, this.dataConnectionInfo);
         Services.obs.notifyObservers(null, kDataChangedTopic, null);
         break;
       case "RIL:EnumerateCalls":
-        this.handleEnumerateCalls(msg.json.calls);
+        this.handleEnumerateCalls(msg.json.data.calls);
         break;
       case "RIL:GetAvailableNetworks":
-        this.handleGetAvailableNetworks(msg.json);
+        this.handleGetAvailableNetworks(msg.json.data);
         break;
       case "RIL:NetworkSelectionModeChanged":
-        this.networkSelectionMode = msg.json.mode;
+        this.networkSelectionMode = msg.json.data.mode;
         break;
       case "RIL:SelectNetwork":
-        this.handleSelectNetwork(msg.json,
+        this.handleSelectNetwork(msg.json.data,
                                  RIL.GECKO_NETWORK_SELECTION_MANUAL);
         break;
       case "RIL:SelectNetworkAuto":
-        this.handleSelectNetwork(msg.json,
+        this.handleSelectNetwork(msg.json.data,
                                  RIL.GECKO_NETWORK_SELECTION_AUTOMATIC);
         break;
       case "RIL:CallStateChanged":
         this._deliverCallback(msg.json.subscriptionId,
                               "_telephonyCallbacks",
                               "callStateChanged",
-                              [msg.json.call.callIndex, msg.json.call.state,
-                               msg.json.call.number, msg.json.call.isActive]);
+                              [msg.json.data.callIndex, msg.json.data.state,
+                               msg.json.data.number, msg.json.data.isActive]);
         break;
       case "RIL:CallError":
         this._deliverCallback(msg.json.subscriptionId,
                               "_telephonyCallbacks",
                               "notifyError",
-                              [msg.json.message.callIndex,
-                               msg.json.message.error]);
+                              [msg.json.data.callIndex,
+                               msg.json.data.error]);
         break;
       case "RIL:VoicemailNotification":
-        this.handleVoicemailNotification(msg.json);
+        this.handleVoicemailNotification(msg.json.data);
         break;
       case "RIL:VoicemailNumberChanged":
-        this.voicemailNumber = msg.json.number;
-        this.voicemailDisplayName = msg.json.alphaId;
+        this.voicemailNumber = msg.json.data.number;
+        this.voicemailDisplayName = msg.json.data.alphaId;
         break;
       case "RIL:CardLockResult":
-        if (msg.json.success) {
-          let result = new MobileICCCardLockResult(msg.json);
-          this.fireRequestSuccess(msg.json.requestId, result);
+        if (msg.json.data.success) {
+          let result = new MobileICCCardLockResult(msg.json.data);
+          this.fireRequestSuccess(msg.json.data.requestId, result);
         } else {
-          if (msg.json.rilMessageType == "iccSetCardLock" ||
-              msg.json.rilMessageType == "iccUnlockCardLock") {
-            let result = JSON.stringify({lockType: msg.json.lockType,
-                                         retryCount: msg.json.retryCount});
+          if (msg.json.data.rilMessageType == "iccSetCardLock" ||
+              msg.json.data.rilMessageType == "iccUnlockCardLock") {
+            let result = JSON.stringify({lockType: msg.json.data.lockType,
+                                         retryCount: msg.json.data.retryCount});
             Services.obs.notifyObservers(null, kIccCardLockErrorTopic,
                                          result);
           }
-          this.fireRequestError(msg.json.requestId, msg.json.errorMsg);
+          this.fireRequestError(msg.json.data.requestId, msg.json.data.errorMsg);
         }
         break;
       case "RIL:USSDReceived":
-        let res = JSON.stringify({message: msg.json.message,
-                                  sessionEnded: msg.json.sessionEnded});
+        let res = JSON.stringify({message: msg.json.data.message,
+                                  sessionEnded: msg.json.data.sessionEnded});
         Services.obs.notifyObservers(null, kUssdReceivedTopic, res);
         break;
       case "RIL:SendMMI:Return:OK":
       case "RIL:CancelMMI:Return:OK":
-        request = this.takeRequest(msg.json.requestId);
+        request = this.takeRequest(msg.json.data.requestId);
         if (request) {
-          Services.DOMRequest.fireSuccess(request, msg.json.result);
+          Services.DOMRequest.fireSuccess(request, msg.json.data.result);
         }
         break;
       case "RIL:SendMMI:Return:KO":
       case "RIL:CancelMMI:Return:KO":
-        request = this.takeRequest(msg.json.requestId);
+        request = this.takeRequest(msg.json.data.requestId);
         if (request) {
-          Services.DOMRequest.fireError(request, msg.json.errorMsg);
+          Services.DOMRequest.fireError(request, msg.json.data.errorMsg);
         }
         break;
       case "RIL:StkCommand":
-        let jsonString = JSON.stringify(msg.json);
+        let jsonString = JSON.stringify(msg.json.data);
         Services.obs.notifyObservers(null, kStkCommandTopic, jsonString);
         break;
       case "RIL:StkSessionEnd":
         Services.obs.notifyObservers(null, kStkSessionEndTopic, null);
         break;
       case "RIL:DataError":
-        this.updateConnectionInfo(msg.json, this.dataConnectionInfo);
-        Services.obs.notifyObservers(null, kDataErrorTopic, msg.json.error);
+        this.updateConnectionInfo(msg.json.data, this.dataConnectionInfo);
+        Services.obs.notifyObservers(null, kDataErrorTopic, msg.json.data.error);
         break;
     }
   },
@@ -892,7 +897,6 @@ RILContentHelper.prototype = {
   },
 
   _deliverCallback: function _deliverCallback(subscriptionId, callbackType, name, args) {
-    debug("XXX _deliverCallback: subscriptionId: " + subscriptionId + " type: " + callbackType);
     if (callbackType == "_telephonyCallbacks") {
       let thisCallbacks = this._callbackManagerBySim[subscriptionId][callbackType];
       if (!thisCallbacks) {
