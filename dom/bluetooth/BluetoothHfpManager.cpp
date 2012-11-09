@@ -580,7 +580,7 @@ BluetoothHfpManager::Connect(const nsAString& aDevicePath,
   if (!ril) {
     MOZ_ASSERT("Failed to get RIL Content Helper");
   }
-  ril->EnumerateCalls(mListener->GetCallback());
+  ril->EnumerateCalls(0, mListener->GetCallback());
 
   nsRefPtr<BluetoothReplyRunnable> runnable = aRunnable;
 

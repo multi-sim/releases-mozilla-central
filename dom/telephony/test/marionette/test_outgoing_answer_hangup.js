@@ -93,7 +93,8 @@ function hangUp() {
     log("Received 'disconnected' call event.");
     is(outgoing, event.call);
     is(outgoing.state, "disconnected");
-
+    //is(mgr.calls.length, 0); //XXX rild
+    //is(mgr.phones[1].calls.length, 0); //XXX rild
     is(telephony.active, null);
     is(telephony.calls.length, 0);
 

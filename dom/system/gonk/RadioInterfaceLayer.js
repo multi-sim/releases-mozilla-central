@@ -330,7 +330,7 @@ RadioInterfaceLayer.prototype = {
         return this.rilContext;
       case "RIL:EnumerateCalls":
         this.saveRequestTarget(msg);
-        this.enumerateCalls(msg.json);
+        this.enumerateCalls(msg.json.data);
         break;
       case "RIL:GetMicrophoneMuted":
         // This message is sync.

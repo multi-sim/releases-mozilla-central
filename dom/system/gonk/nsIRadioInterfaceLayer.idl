@@ -172,7 +172,8 @@ interface nsIRILContentHelper : nsIMobileConnectionProvider
    * Will continue calling callback.enumerateCallState until the callback
    * returns false.
    */
-  void enumerateCalls(in nsIRILTelephonyCallback callback);
+  void enumerateCalls(in unsigned long subscriptionId,
+                      in nsIRILTelephonyCallback callback);
 
   /**
    * Functionality for making and managing phone calls.

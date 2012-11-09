@@ -38,6 +38,8 @@ function simulateIncoming() {
     is(incoming.state, "incoming");
 
     //ok(telephony.calls === calls); // bug 717414
+    //is(mgr.calls.length, 1);
+    //is(mgr.phones[1].calls.length, 0);
     is(telephony.calls.length, 1);
     is(telephony.calls[0], incoming);
 

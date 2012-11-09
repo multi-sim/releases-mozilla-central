@@ -75,7 +75,7 @@ Telephony::Create(TelephonyManager* aTelephonyManager, uint32_t aPhoneIndex, nsI
   rv = aRIL->RegisterTelephonyCallback(telephony->mPhoneIndex, telephony->mRILTelephonyCallback);
   NS_ENSURE_SUCCESS(rv, nullptr);
 
-  rv = aRIL->EnumerateCalls(telephony->mRILTelephonyCallback);
+  rv = aRIL->EnumerateCalls(telephony->mPhoneIndex, telephony->mRILTelephonyCallback);
   NS_ENSURE_SUCCESS(rv, nullptr);
 
   return telephony.forget();
@@ -331,6 +331,7 @@ NS_IMETHODIMP
 Telephony::CallStateChanged(uint32_t aCallIndex, uint16_t aCallState,
                             const nsAString& aNumber, bool aIsActive)
 {
+  LOGI("CallStateChanged: %u", mPhoneIndex);
   NS_ASSERTION(aCallIndex != kOutgoingPlaceholderCallIndex,
                "This should never happen!");
 

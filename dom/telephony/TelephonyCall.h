@@ -89,6 +89,12 @@ public:
   void
   NotifyError(const nsAString& aError);
 
+  Telephony*
+  GetTelephony()
+  {
+    return mTelephony;
+  }
+
 private:
   TelephonyCall()
   : mCallIndex(kOutgoingPlaceholderCallIndex),

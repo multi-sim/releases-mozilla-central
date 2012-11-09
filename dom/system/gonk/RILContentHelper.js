@@ -468,13 +468,14 @@ RILContentHelper.prototype = {
 
   _telephonyCallbacks: null,
   _voicemailCallbacks: null,
-  _enumerateTelephonyCallbacks: null,
+  _enuTelephonyCbManagerBySim: null,
 
   voicemailStatus: null,
   voicemailNumber: null,
   voicemailDisplayName: null,
 
   _callbackManagerBySim: null,
+
 
   registerCallback: function registerCallback(subscriptionId, callbackType, callback) {
     if (callbackType == "_telephonyCallbacks") {
@@ -565,16 +566,22 @@ RILContentHelper.prototype = {
     cpmm.sendAsyncMessage("RIL:RegisterVoicemailMsg");
   },
 
-  enumerateCalls: function enumerateCalls(callback) {
+  enumerateCalls: function enumerateCalls(subscriptionId, callback) {
     debug("Requesting enumeration of calls for callback: " + callback);
     // We need 'requestId' to meet the 'RILContentHelper <--> RadioInterfaceLayer'
     // protocol.
     let requestId = this._getRandomId();
-    cpmm.sendAsyncMessage("RIL:EnumerateCalls", {requestId: requestId});
-    if (!this._enumerateTelephonyCallbacks) {
-      this._enumerateTelephonyCallbacks = [];
+    cpmm.sendAsyncMessage("RIL:EnumerateCalls", {subscriptionId: subscriptionId,
+                                                 data: {requestId: requestId}});
+
+    if (!this._enuTelephonyCbManagerBySim) {
+      this._enuTelephonyCbManagerBySim = [];
     }
-    this._enumerateTelephonyCallbacks.push(callback);
+    let mgr = this._enuTelephonyCbManagerBySim[subscriptionId];
+    if (!mgr) {
+      mgr = this._enuTelephonyCbManagerBySim[subscriptionId] = [];
+    }
+    mgr.push(callback);
   },
 
   startTone: function startTone(subscriptionId, dtmfChar) {
@@ -710,7 +717,7 @@ RILContentHelper.prototype = {
         Services.obs.notifyObservers(null, kDataChangedTopic, null);
         break;
       case "RIL:EnumerateCalls":
-        this.handleEnumerateCalls(msg.json.data.calls);
+        this.handleEnumerateCalls(msg.json.subscriptionId, msg.json.data.calls);
         break;
       case "RIL:GetAvailableNetworks":
         this.handleGetAvailableNetworks(msg.json.data);
@@ -795,9 +802,9 @@ RILContentHelper.prototype = {
     }
   },
 
-  handleEnumerateCalls: function handleEnumerateCalls(calls) {
+  handleEnumerateCalls: function handleEnumerateCalls(subscriptionId, calls) {
     debug("handleEnumerateCalls: " + JSON.stringify(calls));
-    let callback = this._enumerateTelephonyCallbacks.shift();
+    let callback = this._enuTelephonyCbManagerBySim[subscriptionId].shift();
     for (let i in calls) {
       let call = calls[i];
       let keepGoing;
@@ -898,9 +905,15 @@ RILContentHelper.prototype = {
 
   _deliverCallback: function _deliverCallback(subscriptionId, callbackType, name, args) {
     if (callbackType == "_telephonyCallbacks") {
+      if (!this._callbackManagerBySim || !this._callbackManagerBySim[subscriptionId]) {
+        return;
+      }
+
       let thisCallbacks = this._callbackManagerBySim[subscriptionId][callbackType];
       if (!thisCallbacks) {
+        return;
       } else {
+        debug("DeliverCallback: id: " + subscriptionId + " callbackType: " + callbackType + " name: " + name);
         let callbacks = thisCallbacks.slice();
         for each (let callback in callbacks) {
           let handler = callback[name];

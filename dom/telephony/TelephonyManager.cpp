@@ -82,6 +82,7 @@ TelephonyManager::Create(nsPIDOMWindow* aOwner)
 nsresult
 TelephonyManager::NotifyCallsChanged(TelephonyCall* aCall)
 {
+  LOGI("NotifyCallsChanged: phone: %u", aCall->GetTelephony()->PhoneIndex());
   nsRefPtr<CallEvent> event = CallEvent::Create(aCall);
   NS_ASSERTION(event, "This should never fail!");
 /*
@@ -161,7 +162,7 @@ TelephonyManager::SetSpeakerEnabled(bool aSpeakerEnabled)
 
 NS_IMETHODIMP
 TelephonyManager::GetActive(jsval* aActive)
-{/*
+{
   if (!mActiveCall) {
     aActive->setNull();
     return NS_OK;
@@ -177,9 +178,8 @@ TelephonyManager::GetActive(jsval* aActive)
                                  mActiveCall->ToISupports(), aActive);
     NS_ENSURE_SUCCESS(rv, rv);
   }
+
   return NS_OK;
-  */
-  return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP
