@@ -303,7 +303,7 @@ RILContentHelper.prototype = {
     let request = Services.DOMRequest.createRequest(window);
     let requestId = this.getRequestId(request);
 
-    cpmm.sendAsyncMessage("RIL:GetAvailableNetworks", {requestId: requestId});
+    cpmm.sendAsyncMessage("RIL:GetAvailableNetworks", {data: {requestId: requestId}});
     return request;
   },
 
@@ -345,11 +345,9 @@ RILContentHelper.prototype = {
 
     this._selectingNetwork = network;
 
-    cpmm.sendAsyncMessage("RIL:SelectNetwork", {
-      requestId: requestId,
-      mnc: mnc,
-      mcc: mcc
-    });
+    cpmm.sendAsyncMessage("RIL:SelectNetwork", {data: {requestId: requestId,
+                                                       mnc: mnc,
+                                                       mcc: mcc}});
 
     return request;
   },
@@ -376,7 +374,7 @@ RILContentHelper.prototype = {
     }
 
     this._selectingNetwork = "automatic";
-    cpmm.sendAsyncMessage("RIL:SelectNetworkAuto", {requestId: requestId});
+    cpmm.sendAsyncMessage("RIL:SelectNetworkAuto", {data: {requestId: requestId}});
     return request;
   },
 
@@ -387,7 +385,8 @@ RILContentHelper.prototype = {
     }
     let request = Services.DOMRequest.createRequest(window);
     let requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:GetCardLock", {lockType: lockType, requestId: requestId});
+    cpmm.sendAsyncMessage("RIL:GetCardLock", {data: {lockType: lockType,
+                                                     requestId: requestId}});
     return request;
   },
 
@@ -398,7 +397,7 @@ RILContentHelper.prototype = {
     }
     let request = Services.DOMRequest.createRequest(window);
     info.requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:UnlockCardLock", info);
+    cpmm.sendAsyncMessage("RIL:UnlockCardLock", {data: info});
     return request;
   },
 
@@ -409,7 +408,7 @@ RILContentHelper.prototype = {
     }
     let request = Services.DOMRequest.createRequest(window);
     info.requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:SetCardLock", info);
+    cpmm.sendAsyncMessage("RIL:SetCardLock", {data: info});
     return request;
   },
 
@@ -421,7 +420,7 @@ RILContentHelper.prototype = {
     }
     let request = Services.DOMRequest.createRequest(window);
     let requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:SendMMI", {mmi: mmi, requestId: requestId});
+    cpmm.sendAsyncMessage("RIL:SendMMI", {data: {mmi: mmi, requestId: requestId}});
     return request;
   },
 
@@ -433,7 +432,7 @@ RILContentHelper.prototype = {
     }
     let request = Services.DOMRequest.createRequest(window);
     let requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:CancelMMI", {requestId: requestId});
+    cpmm.sendAsyncMessage("RIL:CancelMMI", {data: {requestId: requestId}});
     return request;
   },
 
@@ -443,7 +442,7 @@ RILContentHelper.prototype = {
                                   Cr.NS_ERROR_UNEXPECTED);
     }
     response.command = command;
-    cpmm.sendAsyncMessage("RIL:SendStkResponse", response);
+    cpmm.sendAsyncMessage("RIL:SendStkResponse", {data: response});
   },
 
   sendStkMenuSelection: function sendStkMenuSelection(window,
@@ -453,8 +452,9 @@ RILContentHelper.prototype = {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
     }
-    cpmm.sendAsyncMessage("RIL:SendStkMenuSelection", {itemIdentifier: itemIdentifier,
-                                                       helpRequested: helpRequested});
+    cpmm.sendAsyncMessage("RIL:SendStkMenuSelection", {data:
+                                                       {itemIdentifier: itemIdentifier,
+                                                        helpRequested: helpRequested}});
   },
 
   sendStkEventDownload: function sendStkEventDownload(window,
@@ -463,7 +463,7 @@ RILContentHelper.prototype = {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
     }
-    cpmm.sendAsyncMessage("RIL:SendStkEventDownload", {event: event});
+    cpmm.sendAsyncMessage("RIL:SendStkEventDownload", {data: {event: event}});
   },
 
   _telephonyCallbacks: null,
@@ -586,7 +586,8 @@ RILContentHelper.prototype = {
 
   startTone: function startTone(subscriptionId, dtmfChar) {
     debug("Sending Tone for " + dtmfChar);
-    cpmm.sendAsyncMessage("RIL:StartTone", {subscriptionId: subscriptionId, dtmfChar: dtmfChar});
+    cpmm.sendAsyncMessage("RIL:StartTone", {subscriptionId: subscriptionId,
+                                            data: {dtmfChar: dtmfChar}});
   },
 
   stopTone: function stopTone(subscriptionId) {
@@ -596,33 +597,40 @@ RILContentHelper.prototype = {
 
   dial: function dial(subscriptionId, number) {
     debug("Dialing no. " + subscriptionId + " " + number);
-    cpmm.sendAsyncMessage("RIL:Dial", {subscriptionId: subscriptionId, number: number});
+    cpmm.sendAsyncMessage("RIL:Dial", {subscriptionId: subscriptionId,
+                                       data: {number: number}});
   },
 
   dialEmergency: function dialEmergency(subscriptionId, number) {
     debug("Dialing emergency " + number);
-    cpmm.sendAsyncMessage("RIL:DialEmergency", {subscriptionId: subscriptionId, number: number});
+    cpmm.sendAsyncMessage("RIL:DialEmergency", {subscriptionId: subscriptionId,
+                                                data: {number: number}});
   },
 
   hangUp: function hangUp(subscriptionId, callIndex) {
     debug("Hanging up call no. " + callIndex);
-    cpmm.sendAsyncMessage("RIL:HangUp", {subscriptionId: subscriptionId, callIndex: callIndex});
+    cpmm.sendAsyncMessage("RIL:HangUp", {subscriptionId: subscriptionId,
+                                         data: {callIndex: callIndex}});
   },
 
   answerCall: function answerCall(subscriptionId, callIndex) {
-    cpmm.sendAsyncMessage("RIL:AnswerCall", {subscriptionId: subscriptionId, callIndex: callIndex});
+    cpmm.sendAsyncMessage("RIL:AnswerCall", {subscriptionId: subscriptionId,
+                                             data: {callIndex: callIndex}});
   },
 
   rejectCall: function rejectCall(subscriptionId, callIndex) {
-    cpmm.sendAsyncMessage("RIL:RejectCall", {subscriptionId: subscriptionId, callIndex: callIndex});
+    cpmm.sendAsyncMessage("RIL:RejectCall", {subscriptionId: subscriptionId,
+                                             data: {callIndex: callIndex}});
   },
 
   holdCall: function holdCall(subscriptionId, callIndex) {
-    cpmm.sendAsyncMessage("RIL:HoldCall", {subscriptionId: subscriptionId, callIndex: callIndex});
+    cpmm.sendAsyncMessage("RIL:HoldCall", {subscriptionId: subscriptionId,
+                                           data: {callIndex: callIndex}});
   },
 
   resumeCall: function resumeCall(subscriptionId, callIndex) {
-    cpmm.sendAsyncMessage("RIL:ResumeCall", {subscriptionId: subscriptionId, callIndex: callIndex});
+    cpmm.sendAsyncMessage("RIL:ResumeCall", {subscriptionId: subscriptionId,
+                                             data: {callIndex: callIndex}});
   },
 
   get microphoneMuted() {
@@ -630,7 +638,7 @@ RILContentHelper.prototype = {
   },
 
   set microphoneMuted(value) {
-    cpmm.sendAsyncMessage("RIL:SetMicrophoneMuted", value);
+    cpmm.sendAsyncMessage("RIL:SetMicrophoneMuted", {data: value});
   },
 
   get speakerEnabled() {
@@ -638,7 +646,7 @@ RILContentHelper.prototype = {
   },
 
   set speakerEnabled(value) {
-    cpmm.sendAsyncMessage("RIL:SetSpeakerEnabled", value);
+    cpmm.sendAsyncMessage("RIL:SetSpeakerEnabled", {data: value});
   },
 
   // nsIObserver
