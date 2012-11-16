@@ -336,84 +336,84 @@ RadioInterfaceLayer.prototype = {
         // This message is sync.
         return this.microphoneMuted;
       case "RIL:SetMicrophoneMuted":
-        this.microphoneMuted = msg.json;
+        this.microphoneMuted = msg.json.data;
         break;
       case "RIL:GetSpeakerEnabled":
         // This message is sync.
         return this.speakerEnabled;
       case "RIL:SetSpeakerEnabled":
-        this.speakerEnabled = msg.json;
+        this.speakerEnabled = msg.json.data;
         break;
       case "RIL:StartTone":
-        this.startTone(msg.json.dtmfChar);
+        this.startTone(msg.json.data.dtmfChar);
         break;
       case "RIL:StopTone":
         this.stopTone();
         break;
       case "RIL:Dial":
-        this.dial(msg.json.number);
+        this.dial(msg.json.data.number);
         break;
       case "RIL:DialEmergency":
-        this.dialEmergency(msg.json.number);
+        this.dialEmergency(msg.json.data.number);
         break;
       case "RIL:HangUp":
-        this.hangUp(msg.json.callIndex);
+        this.hangUp(msg.json.data.callIndex);
         break;
       case "RIL:AnswerCall":
-        this.answerCall(msg.json.callIndex);
+        this.answerCall(msg.json.data.callIndex);
         break;
       case "RIL:RejectCall":
-        this.rejectCall(msg.json.callIndex);
+        this.rejectCall(msg.json.data.callIndex);
         break;
       case "RIL:HoldCall":
-        this.holdCall(msg.json.callIndex);
+        this.holdCall(msg.json.data.callIndex);
         break;
       case "RIL:ResumeCall":
-        this.resumeCall(msg.json.callIndex);
+        this.resumeCall(msg.json.data.callIndex);
         break;
       case "RIL:RegisterTelephonyMsg":
         this.registerMessageTarget("telephony", msg.target);
         break;
       case "RIL:GetAvailableNetworks":
         this.saveRequestTarget(msg);
-        this.getAvailableNetworks(msg.json.requestId);
+        this.getAvailableNetworks(msg.json.data.requestId);
         break;
       case "RIL:SelectNetwork":
         this.saveRequestTarget(msg);
-        this.selectNetwork(msg.json);
+        this.selectNetwork(msg.json.data);
         break;
       case "RIL:SelectNetworkAuto":
         this.saveRequestTarget(msg);
-        this.selectNetworkAuto(msg.json.requestId);
+        this.selectNetworkAuto(msg.json.data.requestId);
         break;
       case "RIL:GetCardLock":
         this.saveRequestTarget(msg);
-        this.getCardLock(msg.json);
+        this.getCardLock(msg.json.data);
         break;
       case "RIL:UnlockCardLock":
         this.saveRequestTarget(msg);
-        this.unlockCardLock(msg.json);
+        this.unlockCardLock(msg.json.data);
         break;
       case "RIL:SetCardLock":
         this.saveRequestTarget(msg);
-        this.setCardLock(msg.json);
+        this.setCardLock(msg.json.data);
         break;
       case "RIL:SendMMI":
         this.saveRequestTarget(msg);
-        this.sendMMI(msg.json);
+        this.sendMMI(msg.json.data);
         break;
       case "RIL:CancelMMI":
         this.saveRequestTarget(msg);
-        this.cancelMMI(msg.json);
+        this.cancelMMI(msg.json.data);
         break;
       case "RIL:SendStkResponse":
-        this.sendStkResponse(msg.json);
+        this.sendStkResponse(msg.json.data);
         break;
       case "RIL:SendStkMenuSelection":
-        this.sendStkMenuSelection(msg.json);
+        this.sendStkMenuSelection(msg.json.data);
         break;
       case "RIL:SendStkEventDownload":
-        this.sendStkEventDownload(msg.json);
+        this.sendStkEventDownload(msg.json.data);
         break;
       case "RIL:RegisterMobileConnectionMsg":
         this.registerMessageTarget("mobileconnection", msg.target);
@@ -577,7 +577,7 @@ RadioInterfaceLayer.prototype = {
 
   _messageManagerByRequest: null,
   saveRequestTarget: function saveRequestTarget(msg) {
-    let requestId = msg.json.requestId;
+    let requestId = msg.json.data.requestId;
     if (!requestId) {
       // The content is not interested in a response;
       return;
