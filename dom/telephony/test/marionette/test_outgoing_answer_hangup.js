@@ -6,27 +6,35 @@ MARIONETTE_TIMEOUT = 10000;
 SpecialPowers.addPermission("telephony", true, document);
 
 let mgr = window.navigator.mozTelephonyManager;
-let telephony = mgr.defaultPhone;
+let activeTelephony = mgr.defaultPhone;
+let idleTelephony = mgr.phones[1];
 let number = "5555552368";
 let outgoing;
-let calls;
+let is2ndTest = false;
+let pendingEmulatorCmdCount = 0;
 
 function verifyInitialState() {
-  log("Verifying initial state.");
+  log("Run 1st test: using modem 0");
   ok(mgr);
   ok(mgr.phones);
   is(mgr.phones.length, 2);
-  is(mgr.phones[0], telephony);
+  is(mgr.phones[0], activeTelephony);
+  is(mgr.phones[1], idleTelephony);
 
-  ok(telephony);
-  is(telephony.active, null);
+  is(activeTelephony.active, null);
+  is(idleTelephony.active, null);
   ok(mgr.calls);
-  ok(telephony.calls);
-  is(mgr.calls.length, 0);
-  is(telephony.calls.length, 0);
-  calls = telephony.calls;
+  ok(activeTelephony.calls);
+  ok(idleTelephony.calls);
 
+  is(mgr.calls.length, 0);
+  is(activeTelephony.calls.length, 0);
+  is(idleTelephony.calls.length, 0);
+
+  pendingEmulatorCmdCount++;
   runEmulatorCmd("gsm list", function(result) {
+    pendingEmulatorCmdCount--;
+
     log("Initial call list: " + result);
     is(result[0], "OK");
     dial();
@@ -36,24 +44,27 @@ function verifyInitialState() {
 function dial() {
   log("Make an outgoing call.");
 
-  outgoing = telephony.dial(number);
+  outgoing = activeTelephony.dial(number);
   ok(outgoing);
   is(outgoing.number, number);
   is(outgoing.state, "dialing");
 
-  is(outgoing, telephony.active);
-  //ok(telephony.calls === calls); // bug 717414
+  is(outgoing, activeTelephony.active);
   is(mgr.calls.length, 1);
-  is(telephony.calls.length, 1);
+  is(activeTelephony.calls.length, 1);
+  is(idleTelephony.calls.length, 0);
   is(mgr.calls[0], outgoing);
-  is(telephony.calls[0], outgoing);
+  is(activeTelephony.calls[0], outgoing);
 
   outgoing.onalerting = function onalerting(event) {
     log("Received 'onalerting' call event.");
     is(outgoing, event.call);
     is(outgoing.state, "alerting");
 
+    pendingEmulatorCmdCount++;
     runEmulatorCmd("gsm list", function(result) {
+      pendingEmulatorCmdCount--;
+
       log("Call list is now: " + result);
       is(result[0], "outbound to  " + number + " : ringing");
       is(result[1], "OK");
@@ -72,9 +83,11 @@ function answer() {
     is(outgoing, event.call);
     is(outgoing.state, "connected");
 
-    is(outgoing, telephony.active);
-
+    is(outgoing, activeTelephony.active);
+    pendingEmulatorCmdCount++;
     runEmulatorCmd("gsm list", function(result) {
+      pendingEmulatorCmdCount--;
+
       log("Call list is now: " + result);
       is(result[0], "outbound to  " + number + " : active");
       is(result[1], "OK");
@@ -93,21 +106,65 @@ function hangUp() {
     log("Received 'disconnected' call event.");
     is(outgoing, event.call);
     is(outgoing.state, "disconnected");
-    //is(mgr.calls.length, 0); //XXX rild
-    //is(mgr.phones[1].calls.length, 0); //XXX rild
-    is(telephony.active, null);
-    is(telephony.calls.length, 0);
+    is(mgr.calls.length, 0);
+    is(activeTelephony.active, null);
+    is(activeTelephony.calls.length, 0);
+    is(idleTelephony.calls.length, 0);
 
+    pendingEmulatorCmdCount++;
     runEmulatorCmd("gsm list", function(result) {
+      pendingEmulatorCmdCount--;
+
       log("Call list is now: " + result);
       is(result[0], "OK");
-      cleanUp();
+      if (is2ndTest) {
+        cleanUp();
+      } else {
+        runNextTest();
+      }
     });
   };
   runEmulatorCmd("gsm cancel " + number);
 }
 
+function runNextTest() {
+  log("Run next test: using modem 1");
+  is2ndTest = true;
+
+  pendingEmulatorCmdCount++;
+  runEmulatorCmd("mux select 1", function(result) {
+    pendingEmulatorCmdCount--;
+
+    is(result[0], "OK");
+
+    activeTelephony = mgr.phones[1];
+    idleTelephony = mgr.phones[0];
+  });
+
+  ok(activeTelephony);
+  ok(idleTelephony);
+  is(activeTelephony.active, null);
+  is(idleTelephony.active, null);
+  ok(activeTelephony.calls);
+  ok(idleTelephony.calls);
+  is(mgr.calls.length, 0);
+  is(activeTelephony.calls.length, 0);
+  is(idleTelephony.calls.length, 0);
+
+  pendingEmulatorCmdCount++;
+  runEmulatorCmd("gsm list", function(result) {
+    log("Initial call list: " + result);
+    pendingEmulatorCmdCount--;
+    is(result[0], "OK");
+    dial();
+  });
+}
+
 function cleanUp() {
+  if (pendingEmulatorCmdCount > 0) {
+    window.setTimeout(cleanUp, 100);
+    return;
+  }
   SpecialPowers.removePermission("telephony", document);
   finish();
 }
