@@ -63,6 +63,6 @@ function cleanUp() {
 }
 
 waitFor(test_revert_previous_setting_on_invalid_value, function () {
-  return navigator.mozMobileConnection.voice.connected;
+  return navigator.mozMobileConnectionManager.defaultMobileConnection.voice.connected;
 });
 
