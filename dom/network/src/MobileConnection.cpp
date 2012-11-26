@@ -84,7 +84,7 @@ MobileConnection::MobileConnection()
   if (!mProvider) {
     NS_WARNING("Could not acquire nsIMobileConnectionProvider!");
   } else {
-    mProvider->RegisterMobileConnectionMsg();
+    mProvider->RegisterMobileConnectionMsg(mSubscriptionId);
   }
 }
 
@@ -254,7 +254,7 @@ MobileConnection::GetCardState(nsAString& cardState)
     cardState.SetIsVoid(true);
     return NS_OK;
   }
-  return mProvider->GetCardState(cardState);
+  return mProvider->GetCardState(mSubscriptionId, cardState);
 }
 
 NS_IMETHODIMP
@@ -264,7 +264,7 @@ MobileConnection::GetIccInfo(nsIDOMMozMobileICCInfo** aIccInfo)
     *aIccInfo = nullptr;
     return NS_OK;
   }
-  return mProvider->GetIccInfo(aIccInfo);
+  return mProvider->GetIccInfo(mSubscriptionId, aIccInfo);
 }
 
 NS_IMETHODIMP
@@ -274,7 +274,7 @@ MobileConnection::GetVoice(nsIDOMMozMobileConnectionInfo** voice)
     *voice = nullptr;
     return NS_OK;
   }
-  return mProvider->GetVoiceConnectionInfo(voice);
+  return mProvider->GetVoiceConnectionInfo(mSubscriptionId, voice);
 }
 
 NS_IMETHODIMP
@@ -284,7 +284,7 @@ MobileConnection::GetData(nsIDOMMozMobileConnectionInfo** data)
     *data = nullptr;
     return NS_OK;
   }
-  return mProvider->GetDataConnectionInfo(data);
+  return mProvider->GetDataConnectionInfo(mSubscriptionId, data);
 }
 
 NS_IMETHODIMP
@@ -294,7 +294,8 @@ MobileConnection::GetNetworkSelectionMode(nsAString& networkSelectionMode)
     networkSelectionMode.SetIsVoid(true);
     return NS_OK;
   }
-  return mProvider->GetNetworkSelectionMode(networkSelectionMode);
+  return mProvider->GetNetworkSelectionMode(mSubscriptionId, 
+                                            networkSelectionMode);
 }
 
 NS_IMETHODIMP
@@ -313,7 +314,7 @@ MobileConnection::GetNetworks(nsIDOMDOMRequest** request)
     return NS_ERROR_FAILURE;
   }
 
-  return mProvider->GetNetworks(GetOwner(), request);
+  return mProvider->GetNetworks(GetOwner(), mSubscriptionId, request);
 }
 
 NS_IMETHODIMP
@@ -325,7 +326,8 @@ MobileConnection::SelectNetwork(nsIDOMMozMobileNetworkInfo* network, nsIDOMDOMRe
     return NS_ERROR_FAILURE;
   }
 
-  return mProvider->SelectNetwork(GetOwner(), network, request);
+  return mProvider->SelectNetwork(GetOwner(), network, mSubscriptionId, 
+                                  request);
 }
 
 NS_IMETHODIMP
@@ -337,7 +339,8 @@ MobileConnection::SelectNetworkAutomatically(nsIDOMDOMRequest** request)
     return NS_ERROR_FAILURE;
   }
 
-  return mProvider->SelectNetworkAutomatically(GetOwner(), request);
+  return mProvider->SelectNetworkAutomatically(GetOwner(), mSubscriptionId, 
+                                               request);
 }
 
 NS_IMETHODIMP
@@ -349,7 +352,8 @@ MobileConnection::GetCardLock(const nsAString& aLockType, nsIDOMDOMRequest** aDo
     return NS_ERROR_FAILURE;
   }
 
-  return mProvider->GetCardLock(GetOwner(), aLockType, aDomRequest);
+  return mProvider->GetCardLock(GetOwner(), aLockType, mSubscriptionId, 
+                                aDomRequest);
 }
 
 NS_IMETHODIMP
@@ -361,7 +365,8 @@ MobileConnection::UnlockCardLock(const jsval& aInfo, nsIDOMDOMRequest** aDomRequ
     return NS_ERROR_FAILURE;
   }
 
-  return mProvider->UnlockCardLock(GetOwner(), aInfo, aDomRequest);
+  return mProvider->UnlockCardLock(GetOwner(), aInfo, mSubscriptionId, 
+                                   aDomRequest);
 }
 
 NS_IMETHODIMP
@@ -373,7 +378,8 @@ MobileConnection::SetCardLock(const jsval& aInfo, nsIDOMDOMRequest** aDomRequest
     return NS_ERROR_FAILURE;
   }
 
-  return mProvider->SetCardLock(GetOwner(), aInfo, aDomRequest);
+  return mProvider->SetCardLock(GetOwner(), aInfo, mSubscriptionId, 
+                                aDomRequest);
 }
 
 NS_IMETHODIMP
@@ -384,7 +390,7 @@ MobileConnection::SendMMI(const nsAString& aMMIString,
     return NS_ERROR_FAILURE;
   }
 
-  return mProvider->SendMMI(GetOwner(), aMMIString, request);
+  return mProvider->SendMMI(GetOwner(), aMMIString, mSubscriptionId, request);
 }
 
 NS_IMETHODIMP
@@ -394,7 +400,7 @@ MobileConnection::CancelMMI(nsIDOMDOMRequest** request)
     return NS_ERROR_FAILURE;
   }
 
-  return mProvider->CancelMMI(GetOwner(), request);
+  return mProvider->CancelMMI(GetOwner(), mSubscriptionId, request);
 }
 
 } // namespace network

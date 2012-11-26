@@ -43,6 +43,7 @@ public:
 private:
   nsCOMPtr<nsIMobileConnectionProvider> mProvider;
   nsRefPtr<icc::IccManager> mIccManager;
+  uint32_t mSubscriptionId;
 
   nsIDOMEventTarget*
   ToIDOMEventTarget() const
