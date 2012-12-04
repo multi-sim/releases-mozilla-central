@@ -27,6 +27,8 @@ Cu.import("resource://gre/modules/ril_consts.js", RIL);
 // set to true to in ril_consts.js to see debug messages
 const DEBUG = RIL.DEBUG_CONTENT_HELPER;
 
+const SIMNUMBER= 2;
+
 const RILCONTENTHELPER_CID =
   Components.ID("{472816e1-1fd6-4405-996c-806f9ea68174}");
 const MOBILEICCINFO_CID =
@@ -113,7 +115,7 @@ MobileICCInfo.prototype = {
   mcc: 0,
   mnc: 0,
   spn: null,
-  msisdn: null,
+  msisdn: null
 };
 
 function MobileConnectionInfo() {}
@@ -203,25 +205,32 @@ VoicemailStatus.prototype = {
 };
 
 function RILContentHelper() {
-  this.iccInfo = new MobileICCInfo();
-  this.voiceConnectionInfo = new MobileConnectionInfo();
-  this.dataConnectionInfo = new MobileConnectionInfo();
-
   this.initRequests();
   this.initMessageListener(RIL_IPC_MSG_NAMES);
   Services.obs.addObserver(this, "xpcom-shutdown", false);
-
-  // Request initial context.
-  let rilContext = cpmm.sendSyncMessage("RIL:GetRilContext")[0];
-
-  if (!rilContext) {
-    debug("Received null rilContext from chrome process.");
-    return;
+  
+  for (let subscriptionID = 0; subscriptionID < SIMNUMBER; subscriptionID++) {
+    this.iccInfo[subscriptionID] = new MobileICCInfo();
+    this.voiceConnectionInfo[subscriptionID] = new MobileConnectionInfo();
+    this.dataConnectionInfo[subscriptionID] = new MobileConnectionInfo();
+    this.networkSelectionMode[subscriptionID]= RIL.GECKO_NETWORK_SELECTION_UNKNOWN;
+    cpmm.sendAsyncMessage("RIL:RegisterMobileConnectionMsg",
+                          {subscriptionId: subscriptionID});  
+    
+    let rilContext = cpmm.sendSyncMessage("RIL:GetRilContext",
+                                          {subscriptionId: subscriptionID})[0];
+    if (!rilContext) {
+      debug("Received null rilContext from chrome process." + subscriptionID);
+      continue;
+    }
+    this.cardState[subscriptionID] = rilContext.cardState;
+    this.updateICCInfo(rilContext.icc, this.iccInfo[subscriptionID]);
+    this.updateConnectionInfo(rilContext.voice, 
+                              this.voiceConnectionInfo[subscriptionID]);
+    this.updateConnectionInfo(rilContext.data, 
+                              this.dataConnectionInfo[subscriptionID]);
   }
-  this.cardState = rilContext.cardState;
-  this.updateICCInfo(rilContext.icc, this.iccInfo);
-  this.updateConnectionInfo(rilContext.voice, this.voiceConnectionInfo);
-  this.updateConnectionInfo(rilContext.data, this.dataConnectionInfo);
+
   this._callbackManagerBySim = {};
 }
 
@@ -282,11 +291,32 @@ RILContentHelper.prototype = {
 
   // nsIRILContentHelper
 
-  cardState:            RIL.GECKO_CARDSTATE_UNAVAILABLE,
-  iccInfo:              null,
-  voiceConnectionInfo:  null,
-  dataConnectionInfo:   null,
-  networkSelectionMode: RIL.GECKO_NETWORK_SELECTION_UNKNOWN,
+  cardState:            [],
+  iccInfo:              [],
+  voiceConnectionInfo:  [],
+  dataConnectionInfo:   [],
+  networkSelectionMode: [],
+
+
+  getCardState: function getCardState(subscriptionId) {
+    return this.cardState[subscriptionId];
+  },
+
+  getIccInfo: function getIccInfo(subscriptionId) {
+    return this.iccInfo[subscriptionId];
+  },
+
+  getVoiceConnectionInfo: function getVoiceConnectionInfo(subscriptionId) {
+    return this.voiceConnectionInfo[subscriptionId];
+  },
+
+  getDataConnectionInfo: function getDataConnectionInfo(subscriptionId) {
+    return this.dataConnectionInfo[subscriptionId];
+  },  
+
+  getNetworkSelectionMode: function getNetworkSelectionMode(subscriptionId) {
+    return this.networkSelectionMode[subscriptionId];
+  },  
 
   /**
    * The network that is currently trying to be selected (or "automatic").
@@ -294,7 +324,7 @@ RILContentHelper.prototype = {
    */
   _selectingNetwork: null,
 
-  getNetworks: function getNetworks(window) {
+  getNetworks: function getNetworks(window, subscriptionId) {
     if (window == null) {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
@@ -303,11 +333,14 @@ RILContentHelper.prototype = {
     let request = Services.DOMRequest.createRequest(window);
     let requestId = this.getRequestId(request);
 
-    cpmm.sendAsyncMessage("RIL:GetAvailableNetworks", {data: {requestId: requestId}});
+    cpmm.sendAsyncMessage("RIL:GetAvailableNetworks",
+                          {subscriptionId: subscriptionId, 
+                           data: {requestId: requestId}});
     return request;
   },
 
-  selectNetwork: function selectNetwork(window, network) {
+  selectNetwork: function selectNetwork(window, network, 
+                                        subscriptionId) {
     if (window == null) {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
@@ -334,8 +367,8 @@ RILContentHelper.prototype = {
     let request = Services.DOMRequest.createRequest(window);
     let requestId = this.getRequestId(request);
 
-    if (this.networkSelectionMode == RIL.GECKO_NETWORK_SELECTION_MANUAL
-        && this.voiceConnectionInfo.network === network) {
+    if (this.networkSelectionMode[subscriptionId] == RIL.GECKO_NETWORK_SELECTION_MANUAL
+        && this.voiceConnectionInfo[subscriptionId].network === network) {
 
       // Already manually selected this network, so schedule
       // onsuccess to be fired on the next tick
@@ -345,14 +378,13 @@ RILContentHelper.prototype = {
 
     this._selectingNetwork = network;
 
-    cpmm.sendAsyncMessage("RIL:SelectNetwork", {data: {requestId: requestId,
-                                                       mnc: mnc,
-                                                       mcc: mcc}});
+    cpmm.sendAsyncMessage("RIL:SelectNetwork", {subscriptionId: subscriptionId,
+                          data: { requestId: requestId, mnc: mnc, mcc: mcc}});
 
     return request;
   },
 
-  selectNetworkAutomatically: function selectNetworkAutomatically(window) {
+  selectNetworkAutomatically: function selectNetworkAutomatically(window, subscriptionId) {
 
     if (window == null) {
       throw Components.Exception("Can't get window object",
@@ -366,7 +398,8 @@ RILContentHelper.prototype = {
     let request = Services.DOMRequest.createRequest(window);
     let requestId = this.getRequestId(request);
 
-    if (this.networkSelectionMode == RIL.GECKO_NETWORK_SELECTION_AUTOMATIC) {
+    if (this.networkSelectionMode[subscriptionId] == 
+        RIL.GECKO_NETWORK_SELECTION_AUTOMATIC) {
       // Already using automatic selection mode, so schedule
       // onsuccess to be be fired on the next tick
       this.dispatchFireRequestSuccess(requestId, null);
@@ -374,45 +407,51 @@ RILContentHelper.prototype = {
     }
 
     this._selectingNetwork = "automatic";
-    cpmm.sendAsyncMessage("RIL:SelectNetworkAuto", {data: {requestId: requestId}});
+    cpmm.sendAsyncMessage("RIL:SelectNetworkAuto",
+                          {subscriptionId: subscriptionId, 
+                           data: {requestId: requestId}});
     return request;
   },
 
-  getCardLock: function getCardLock(window, lockType) {
+  getCardLock: function getCardLock(window, lockType, subscriptionId) {
     if (window == null) {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
     }
     let request = Services.DOMRequest.createRequest(window);
     let requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:GetCardLock", {data: {lockType: lockType,
-                                                     requestId: requestId}});
+    cpmm.sendAsyncMessage("RIL:GetCardLock", 
+                          {subscriptionId: subscriptionId, 
+                           data: {lockType: lockType, 
+                                  requestId: requestId}});
     return request;
   },
 
-  unlockCardLock: function unlockCardLock(window, info) {
+  unlockCardLock: function unlockCardLock(window, info, subscriptionId) {
     if (window == null) {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
     }
     let request = Services.DOMRequest.createRequest(window);
     info.requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:UnlockCardLock", {data: info});
+    cpmm.sendAsyncMessage("RIL:UnlockCardLock",
+                          {subscriptionId: subscriptionId, data:{info: info}});
     return request;
   },
 
-  setCardLock: function setCardLock(window, info) {
+  setCardLock: function setCardLock(window, info, subscriptionId) {
     if (window == null) {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
     }
     let request = Services.DOMRequest.createRequest(window);
     info.requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:SetCardLock", {data: info});
+    cpmm.sendAsyncMessage("RIL:SetCardLock",
+                          {subscriptionId: subscriptionId, data:{info: info}});   
     return request;
   },
 
-  sendMMI: function sendMMI(window, mmi) {
+  sendMMI: function sendMMI(window, mmi, subscriptionId) {
     debug("Sending MMI " + mmi);
     if (!window) {
       throw Components.Exception("Can't get window object",
@@ -420,11 +459,13 @@ RILContentHelper.prototype = {
     }
     let request = Services.DOMRequest.createRequest(window);
     let requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:SendMMI", {data: {mmi: mmi, requestId: requestId}});
+    cpmm.sendAsyncMessage("RIL:SendMMI", 
+                          {subscriptionId: subscriptionId, 
+                           data:{mmi: mmi, requestId: requestId}});
     return request;
   },
 
-  cancelMMI: function cancelMMI(window) {
+  cancelMMI: function cancelMMI(window, subscriptionId) {
     debug("Cancel MMI");
     if (!window) {
       throw Components.Exception("Can't get window object",
@@ -432,7 +473,9 @@ RILContentHelper.prototype = {
     }
     let request = Services.DOMRequest.createRequest(window);
     let requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:CancelMMI", {data: {requestId: requestId}});
+    cpmm.sendAsyncMessage("RIL:CancelMMI", 
+                          {subscriptionId: subscriptionId, 
+                           data: {requestId: requestId}});
     return request;
   },
 
@@ -556,9 +599,10 @@ RILContentHelper.prototype = {
     cpmm.sendAsyncMessage("RIL:RegisterTelephonyMsg", {subscriptionId: subscriptionId});
   },
 
-  registerMobileConnectionMsg: function registerMobileConnectionMsg() {
+  registerMobileConnectionMsg: function registerMobileConnectionMsg(subscriptionId) {
     debug("Registering for mobile connection-related messages");
-    cpmm.sendAsyncMessage("RIL:RegisterMobileConnectionMsg");
+    cpmm.sendAsyncMessage("RIL:RegisterMobileConnectionMsg",
+                          {subscriptionId: subscriptionId});
   },
 
   registerVoicemailMsg: function registerVoicemailMsg() {
@@ -707,21 +751,23 @@ RILContentHelper.prototype = {
     debug("Received message '" + msg.name + "': " + JSON.stringify(msg.json));
     switch (msg.name) {
       case "RIL:CardStateChanged":
-        if (this.cardState != msg.json.data.cardState) {
-          this.cardState = msg.json.data.cardState;
+        if (this.cardState[msg.jsubscriptionId] != msg.json.data.cardState) {
+          this.cardState[msg.json.subscriptionId] = msg.json.data.cardState;
           Services.obs.notifyObservers(null, kCardStateChangedTopic, null);
         }
         break;
       case "RIL:IccInfoChanged":
-        this.updateICCInfo(msg.json.data, this.iccInfo);
+        this.updateICCInfo(msg.json.data, this.iccInfo[msg.json.subscriptionId]);
         Services.obs.notifyObservers(null, kIccInfoChangedTopic, null);
         break;
       case "RIL:VoiceInfoChanged":
-        this.updateConnectionInfo(msg.json.data, this.voiceConnectionInfo);
+        this.updateConnectionInfo(msg.json.data, 
+                                  this.voiceConnectionInfo[msg.json.subscriptionId]);
         Services.obs.notifyObservers(null, kVoiceChangedTopic, null);
         break;
       case "RIL:DataInfoChanged":
-        this.updateConnectionInfo(msg.json.data, this.dataConnectionInfo);
+        this.updateConnectionInfo(msg.json.data, 
+                                  this.dataConnectionInfo[msg.json.subscriptionId]);
         Services.obs.notifyObservers(null, kDataChangedTopic, null);
         break;
       case "RIL:EnumerateCalls":
@@ -731,14 +777,14 @@ RILContentHelper.prototype = {
         this.handleGetAvailableNetworks(msg.json.data);
         break;
       case "RIL:NetworkSelectionModeChanged":
-        this.networkSelectionMode = msg.json.data.mode;
+        this.networkSelectionMode[msg.json.subscriptionId] = msg.json.data.mode;
         break;
       case "RIL:SelectNetwork":
-        this.handleSelectNetwork(msg.json.data,
+        this.handleSelectNetwork(msg.json.subscriptionId,msg.json.data,
                                  RIL.GECKO_NETWORK_SELECTION_MANUAL);
         break;
       case "RIL:SelectNetworkAuto":
-        this.handleSelectNetwork(msg.json.data,
+        this.handleSelectNetwork(msg.json.subscriptionId,msg.json.data,
                                  RIL.GECKO_NETWORK_SELECTION_AUTOMATIC);
         break;
       case "RIL:CallStateChanged":
@@ -862,9 +908,10 @@ RILContentHelper.prototype = {
     Services.DOMRequest.fireSuccess(request, networks);
   },
 
-  handleSelectNetwork: function handleSelectNetwork(message, mode) {
+  handleSelectNetwork: function handleSelectNetwork(subscriptionId, 
+                                                    message, mode) {
     this._selectingNetwork = null;
-    this.networkSelectionMode = mode;
+    this.networkSelectionMode[subscriptionId] = mode;
 
     if (message.error) {
       this.fireRequestError(message.requestId, message.error);

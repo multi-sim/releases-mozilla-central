@@ -8,7 +8,7 @@ SpecialPowers.addPermission("mobileconnection", true, document);
 const OPERATOR_HOME = 0;
 const OPERATOR_ROAMING = 1;
 
-let connection = navigator.mozMobileConnection;
+let connection = navigator.mozMobileConnectionManager.defaultMobileConnection;
 ok(connection instanceof MozMobileConnection,
    "connection is instanceof " + connection.constructor);
 
