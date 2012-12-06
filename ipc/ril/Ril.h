@@ -25,7 +25,7 @@ namespace ipc {
  */
 struct RilRawData
 {
-    static const size_t MAX_DATA_SIZE = 1024;
+    static const size_t MAX_DATA_SIZE = 1024 + 8;
     uint8_t mData[MAX_DATA_SIZE];
 
     // Number of octets in mData.
