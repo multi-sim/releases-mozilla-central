@@ -39,6 +39,8 @@
 #define TOA_UNKNOWN 0x81
 #define TOA_INTERNATIONAL 0x91
 
+// TODO Determine default phone.
+#define DEFAULT_PHONE_INDEX 0
 using namespace mozilla;
 using namespace mozilla::ipc;
 USING_BLUETOOTH_NAMESPACE
@@ -1358,7 +1360,7 @@ BluetoothHfpManager::OnConnectSuccess()
   nsCOMPtr<nsIRILContentHelper> ril =
     do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
   NS_ENSURE_TRUE_VOID(ril);
-  ril->EnumerateCalls(mListener->GetCallback());
+  ril->EnumerateCalls(DEFAULT_PHONE_INDEX, mListener->GetCallback());
 
   NotifySettings();
 }
