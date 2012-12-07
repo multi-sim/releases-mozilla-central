@@ -29,6 +29,8 @@
 #define HANDSFREE_UUID mozilla::dom::bluetooth::BluetoothServiceUuidStr::Handsfree
 #define HEADSET_UUID mozilla::dom::bluetooth::BluetoothServiceUuidStr::Headset
 
+// TODO Determine default phone.
+#define DEFAULT_PHONE_INDEX 0
 using namespace mozilla;
 using namespace mozilla::ipc;
 USING_BLUETOOTH_NAMESPACE
@@ -580,7 +582,7 @@ BluetoothHfpManager::Connect(const nsAString& aDevicePath,
   if (!ril) {
     MOZ_ASSERT("Failed to get RIL Content Helper");
   }
-  ril->EnumerateCalls(mListener->GetCallback());
+  ril->EnumerateCalls(DEFAULT_PHONE_INDEX, mListener->GetCallback());
 
   nsRefPtr<BluetoothReplyRunnable> runnable = aRunnable;
 

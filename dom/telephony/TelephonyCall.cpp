@@ -12,6 +12,8 @@
 #include "Telephony.h"
 #include "DOMError.h"
 
+// TODO Determine default phone.
+#define DEFAULT_PHONE_INDEX 0
 USING_TELEPHONY_NAMESPACE
 
 // static
@@ -192,7 +194,7 @@ TelephonyCall::Answer()
     return NS_OK;
   }
 
-  nsresult rv = mTelephony->RIL()->AnswerCall(mCallIndex);
+  nsresult rv = mTelephony->RIL()->AnswerCall(DEFAULT_PHONE_INDEX, mCallIndex);
   NS_ENSURE_SUCCESS(rv, rv);
 
   ChangeStateInternal(nsIRadioInterfaceLayer::CALL_STATE_CONNECTING, true);
@@ -209,8 +211,8 @@ TelephonyCall::HangUp()
   }
 
   nsresult rv = mCallState == nsIRadioInterfaceLayer::CALL_STATE_INCOMING ?
-                mTelephony->RIL()->RejectCall(mCallIndex) :
-                mTelephony->RIL()->HangUp(mCallIndex);
+                mTelephony->RIL()->RejectCall(DEFAULT_PHONE_INDEX, mCallIndex) :
+                mTelephony->RIL()->HangUp(DEFAULT_PHONE_INDEX, mCallIndex);
   NS_ENSURE_SUCCESS(rv, rv);
 
   ChangeStateInternal(nsIRadioInterfaceLayer::CALL_STATE_DISCONNECTING, true);
@@ -225,7 +227,7 @@ TelephonyCall::Hold()
     return NS_OK;
   }
   
-  nsresult rv = mTelephony->RIL()->HoldCall(mCallIndex);
+  nsresult rv = mTelephony->RIL()->HoldCall(DEFAULT_PHONE_INDEX, mCallIndex);
   NS_ENSURE_SUCCESS(rv,rv);
   
   ChangeStateInternal(nsIRadioInterfaceLayer::CALL_STATE_HOLDING, true);
@@ -240,7 +242,7 @@ TelephonyCall::Resume()
     return NS_OK;
   }
   
-  nsresult rv = mTelephony->RIL()->ResumeCall(mCallIndex);
+  nsresult rv = mTelephony->RIL()->ResumeCall(DEFAULT_PHONE_INDEX, mCallIndex);
   NS_ENSURE_SUCCESS(rv,rv);
   
   ChangeStateInternal(nsIRadioInterfaceLayer::CALL_STATE_RESUMING, true);
