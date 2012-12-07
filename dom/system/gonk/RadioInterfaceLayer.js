@@ -173,8 +173,9 @@ XPCOMUtils.defineLazyGetter(this, "gAudioManager", function getAudioManager() {
 });
 
 
-function RadioInterfaceLayer(subscriptionId) {
+function RadioInterfaceLayer(subscriptionId, simManager) {
   this.subscriptionId = subscriptionId;
+  this.simManager = simManager;
   this.dataNetworkInterface = new RILNetworkInterface(this, Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE);
   this.mmsNetworkInterface = new RILNetworkInterface(this, Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE_MMS);
   this.suplNetworkInterface = new RILNetworkInterface(this, Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE_SUPL);
@@ -331,18 +332,6 @@ RadioInterfaceLayer.prototype = {
       case "RIL:EnumerateCalls":
         this.saveRequestTarget(msg);
         this.enumerateCalls(msg.json.data);
-        break;
-      case "RIL:GetMicrophoneMuted":
-        // This message is sync.
-        return this.microphoneMuted;
-      case "RIL:SetMicrophoneMuted":
-        this.microphoneMuted = msg.json.data;
-        break;
-      case "RIL:GetSpeakerEnabled":
-        // This message is sync.
-        return this.speakerEnabled;
-      case "RIL:SetSpeakerEnabled":
-        this.speakerEnabled = msg.json.data;
         break;
       case "RIL:StartTone":
         this.startTone(msg.json.data);
@@ -1046,31 +1035,43 @@ RadioInterfaceLayer.prototype = {
    * Track the active call and update the audio system as its state changes.
    */
   _activeCall: null,
-  updateCallAudioState: function updateCallAudioState() {
-    if (!this._activeCall) {
-      // Disable audio.
-      gAudioManager.phoneState = nsIAudioManager.PHONE_STATE_NORMAL;
-      debug("No active call, put audio system into PHONE_STATE_NORMAL: "
-            + gAudioManager.phoneState);
-      return;
-    }
-    switch (this._activeCall.state) {
-      case nsIRadioInterfaceLayer.CALL_STATE_INCOMING:
-        gAudioManager.phoneState = nsIAudioManager.PHONE_STATE_RINGTONE;
-        debug("Incoming call, put audio system into PHONE_STATE_RINGTONE: "
-              + gAudioManager.phoneState);
-        break;
+  _ringingCall: null,
+  updateCallAudioState: function updateCallAudioState(call) {
+    switch (call.state) {
       case nsIRadioInterfaceLayer.CALL_STATE_DIALING: // Fall through...
+      case nsIRadioInterfaceLayer.CALL_STATE_ALERTING:
       case nsIRadioInterfaceLayer.CALL_STATE_CONNECTED:
-        gAudioManager.phoneState = nsIAudioManager.PHONE_STATE_IN_CALL;
-        if (this.speakerEnabled) {
-          gAudioManager.setForceForUse(nsIAudioManager.USE_COMMUNICATION,
-                                       nsIAudioManager.FORCE_SPEAKER);
+        call.isActive = true;
+        this._activeCall = call;
+        if (this._ringingCall &&
+            this._ringingCall.callIndex == call.callIndex) {
+          // Previously ringing call is not ringing now.
+          this._ringingCall = null;
         }
-        debug("Active call, put audio system into PHONE_STATE_IN_CALL: "
-              + gAudioManager.phoneState);
+        break;
+      case nsIRadioInterfaceLayer.CALL_STATE_INCOMING:
+        this._ringingCall = call;
+        call.isActive = false;
+        break;
+      case nsIRadioInterfaceLayer.CALL_STATE_HELD: // Fall through...
+      case nsIRadioInterfaceLayer.CALL_STATE_DISCONNECTED:
+        call.isActive = false;
+        if (this._ringingCall &&
+            this._ringingCall.callIndex == call.callIndex) {
+          // Previously ringing call is not ringing now.
+          this._ringingCall = null;
+        }
+        if (this._activeCall &&
+            this._activeCall.callIndex == call.callIndex) {
+          // Previously active call is not active now.
+          this._activeCall = null;
+        }
         break;
     }
+
+    this.simManager.updateAudio(this.subscriptionId,
+                                this._activeCall ? true : false,
+                                this._ringingCall ? true : false);
   },
 
   /**
@@ -1085,14 +1086,7 @@ RadioInterfaceLayer.prototype = {
       gSystemMessenger.broadcastMessage("telephony-incoming", {number: call.number});
     }
 
-    if (call.isActive) {
-      this._activeCall = call;
-    } else if (this._activeCall &&
-               this._activeCall.callIndex == call.callIndex) {
-      // Previously active call is not active now.
-      this._activeCall = null;
-    }
-    this.updateCallAudioState();
+    this.updateCallAudioState(call);
     this._sendTargetMessage("telephony", "RIL:CallStateChanged", call);
   },
 
@@ -1101,11 +1095,8 @@ RadioInterfaceLayer.prototype = {
    */
   handleCallDisconnected: function handleCallDisconnected(call) {
     debug("handleCallDisconnected: " + JSON.stringify(call));
-    if (call.isActive) {
-      this._activeCall = null;
-    }
-    this.updateCallAudioState();
     call.state = nsIRadioInterfaceLayer.CALL_STATE_DISCONNECTED;
+    this.updateCallAudioState(call);
     this._sendTargetMessage("telephony", "RIL:CallStateChanged", call);
   },
 
@@ -1691,37 +1682,6 @@ RadioInterfaceLayer.prototype = {
   sendStkEventDownload: function sendStkEventDownload(message) {
     message.rilMessageType = "sendStkEventDownload";
     this.worker.postMessage(message);
-  },
-
-  get microphoneMuted() {
-    return gAudioManager.microphoneMuted;
-  },
-  set microphoneMuted(value) {
-    if (value == this.microphoneMuted) {
-      return;
-    }
-    gAudioManager.microphoneMuted = value;
-
-    if (!this._activeCall) {
-      gAudioManager.phoneState = nsIAudioManager.PHONE_STATE_NORMAL;
-    }
-  },
-
-  get speakerEnabled() {
-    return (gAudioManager.getForceForUse(nsIAudioManager.USE_COMMUNICATION) ==
-            nsIAudioManager.FORCE_SPEAKER);
-  },
-  set speakerEnabled(value) {
-    if (value == this.speakerEnabled) {
-      return;
-    }
-    let force = value ? nsIAudioManager.FORCE_SPEAKER :
-                        nsIAudioManager.FORCE_NONE;
-    gAudioManager.setForceForUse(nsIAudioManager.USE_COMMUNICATION, force);
-
-    if (!this._activeCall) {
-      gAudioManager.phoneState = nsIAudioManager.PHONE_STATE_NORMAL;
-    }
   },
 
   /**
@@ -2547,10 +2507,13 @@ function MSimRadioInterfaceLayer() {
   debug("Starting MSimRIL");
   this.mRILs = [];
 
+  // Calls information per subscription Id.
+  this.callsInfo = [];
+
   //TODO read from settings
   const NUM_RILS = 2;
   for (let i = 0; i < NUM_RILS; i++) {
-    this.mRILs.push(new RadioInterfaceLayer(i));
+    this.mRILs.push(new RadioInterfaceLayer(i, this));
   }
 
   ppmm.addMessageListener("child-process-shutdown", this);
@@ -2563,7 +2526,6 @@ function MSimRadioInterfaceLayer() {
   for (let msgname of RIL_IPC_VOICEMAIL_MSG_NAMES) {
     ppmm.addMessageListener(msgname, this);
   }
-
 };
 MSimRadioInterfaceLayer.prototype = {
   classID:   MSIMRADIOINTERFACELAYER_CID,
@@ -2588,9 +2550,25 @@ MSimRadioInterfaceLayer.prototype = {
 
   receiveMessage: function receiveMessage(msg) {
     debug("MSim Received '" + msg.name + "' message from content process");
-    //TODO currently content hasn't added subscriptionId yet
-    let id = (msg.json && msg.json.subscriptionId) || 0;
-    this.mRILs[id].receiveMessage(msg);
+    switch (msg.name) {
+      case "RIL:GetMicrophoneMuted":
+        // This message is sync.
+        return this.microphoneMuted;
+      case "RIL:SetMicrophoneMuted":
+        this.microphoneMuted = msg.json.data;
+        break;
+      case "RIL:GetSpeakerEnabled":
+        // This message is sync.
+        return this.speakerEnabled;
+      case "RIL:SetSpeakerEnabled":
+        this.speakerEnabled = msg.json.data;
+        break;
+      default:
+        // Dispatch the message to the specified instance.
+        //TODO currently content hasn't added subscriptionId yet
+        let id = (msg.json && msg.json.subscriptionId) || 0;
+        this.mRILs[/*msg.json.subscriptionId*/id].receiveMessage(msg);
+    }
   },
 
   getWorker: function getWorker(i) {
@@ -2598,6 +2576,64 @@ MSimRadioInterfaceLayer.prototype = {
     return this.mRILs[i].worker;
   },
 
+  get microphoneMuted() {
+    return gAudioManager.microphoneMuted;
+  },
+  set microphoneMuted(value) {
+    if (value == this.microphoneMuted) {
+      return;
+    }
+    gAudioManager.microphoneMuted = value;
+  },
+
+  get speakerEnabled() {
+    return (gAudioManager.getForceForUse(nsIAudioManager.USE_COMMUNICATION) ==
+            nsIAudioManager.FORCE_SPEAKER);
+  },
+  set speakerEnabled(value) {
+    if (value == this.speakerEnabled) {
+      return;
+    }
+    let force = value ? nsIAudioManager.FORCE_SPEAKER :
+                        nsIAudioManager.FORCE_NONE;
+    gAudioManager.setForceForUse(nsIAudioManager.USE_COMMUNICATION, force);
+  },
+
+  updateAudio: function updateAudio(subscriptionId, hasActiveCall, hasRingingCall) {
+    if (!this.callsInfo[subscriptionId]) {
+      this.callsInfo[subscriptionId] = [];
+    }
+
+    this.callsInfo[subscriptionId].hasActiveCall = hasActiveCall;
+    this.callsInfo[subscriptionId].hasRingingCall = hasRingingCall;
+
+    let _ringing = false;
+    for each (let subscription in this.callsInfo) {
+      if (subscription.hasActiveCall) {
+        gAudioManager.phoneState = nsIAudioManager.PHONE_STATE_IN_CALL;
+        if (this.speakerEnabled) {
+          gAudioManager.setForceForUse(nsIAudioManager.USE_COMMUNICATION,
+                                       nsIAudioManager.FORCE_SPEAKER);
+        }
+        debug("Active call, put audio system into PHONE_STATE_IN_CALL: "
+              + gAudioManager.phoneState);
+        return;
+      }
+
+      if (!_ringing && subscription.hasRingingCall) {
+        _ringing = subscription.hasRingingCall;
+      }
+    }
+
+    // Change phoneState to PHONE_STATE_RINGTONE or PHONE_STATE_NORMAL only
+    // when there's no active call.
+    gAudioManager.phoneState = _ringing ? nsIAudioManager.PHONE_STATE_RINGTONE :
+                                          nsIAudioManager.PHONE_STATE_NORMAL;
+    debug((_ringing ? "Incoming call" : "No active call") +
+          ", put audio system into " +
+          (_ringing ? "PHONE_STATE_RINGTONE" : "PHONE_STATE_NORMAL") +
+          " : " + gAudioManager.phoneState);
+  },
 };
 
 const NSGetFactory = XPCOMUtils.generateNSGetFactory([RadioInterfaceLayer,
