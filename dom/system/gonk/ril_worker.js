@@ -7459,7 +7459,7 @@ let BerTlvHelper = {
 if (!this.debug) {
   // Debugging stub that goes nowhere.
   this.debug = function debug(message) {
-    dump("RIL Worker: " + message + "\n");
+    dump("RIL Worker: subId = " + subscriptionId + " " + message + "\n");
   };
 }
 
