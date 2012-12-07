@@ -222,6 +222,7 @@ function RILContentHelper() {
   this.updateICCInfo(rilContext.icc, this.iccInfo);
   this.updateConnectionInfo(rilContext.voice, this.voiceConnectionInfo);
   this.updateConnectionInfo(rilContext.data, this.dataConnectionInfo);
+  this._callbackManagerById = {};
 }
 
 RILContentHelper.prototype = {
@@ -302,7 +303,7 @@ RILContentHelper.prototype = {
     let request = Services.DOMRequest.createRequest(window);
     let requestId = this.getRequestId(request);
 
-    cpmm.sendAsyncMessage("RIL:GetAvailableNetworks", {requestId: requestId});
+    cpmm.sendAsyncMessage("RIL:GetAvailableNetworks", {data: {requestId: requestId}});
     return request;
   },
 
@@ -344,11 +345,9 @@ RILContentHelper.prototype = {
 
     this._selectingNetwork = network;
 
-    cpmm.sendAsyncMessage("RIL:SelectNetwork", {
-      requestId: requestId,
-      mnc: mnc,
-      mcc: mcc
-    });
+    cpmm.sendAsyncMessage("RIL:SelectNetwork", {data: {requestId: requestId,
+                                                       mnc: mnc,
+                                                       mcc: mcc}});
 
     return request;
   },
@@ -375,7 +374,7 @@ RILContentHelper.prototype = {
     }
 
     this._selectingNetwork = "automatic";
-    cpmm.sendAsyncMessage("RIL:SelectNetworkAuto", {requestId: requestId});
+    cpmm.sendAsyncMessage("RIL:SelectNetworkAuto", {data: {requestId: requestId}});
     return request;
   },
 
@@ -386,7 +385,8 @@ RILContentHelper.prototype = {
     }
     let request = Services.DOMRequest.createRequest(window);
     let requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:GetCardLock", {lockType: lockType, requestId: requestId});
+    cpmm.sendAsyncMessage("RIL:GetCardLock", {data: {lockType: lockType,
+                                                     requestId: requestId}});
     return request;
   },
 
@@ -397,7 +397,7 @@ RILContentHelper.prototype = {
     }
     let request = Services.DOMRequest.createRequest(window);
     info.requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:UnlockCardLock", info);
+    cpmm.sendAsyncMessage("RIL:UnlockCardLock", {data: info});
     return request;
   },
 
@@ -408,7 +408,7 @@ RILContentHelper.prototype = {
     }
     let request = Services.DOMRequest.createRequest(window);
     info.requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:SetCardLock", info);
+    cpmm.sendAsyncMessage("RIL:SetCardLock", {data: info});
     return request;
   },
 
@@ -420,7 +420,7 @@ RILContentHelper.prototype = {
     }
     let request = Services.DOMRequest.createRequest(window);
     let requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:SendMMI", {mmi: mmi, requestId: requestId});
+    cpmm.sendAsyncMessage("RIL:SendMMI", {data: {mmi: mmi, requestId: requestId}});
     return request;
   },
 
@@ -432,7 +432,7 @@ RILContentHelper.prototype = {
     }
     let request = Services.DOMRequest.createRequest(window);
     let requestId = this.getRequestId(request);
-    cpmm.sendAsyncMessage("RIL:CancelMMI", {requestId: requestId});
+    cpmm.sendAsyncMessage("RIL:CancelMMI", {data: {requestId: requestId}});
     return request;
   },
 
@@ -442,7 +442,7 @@ RILContentHelper.prototype = {
                                   Cr.NS_ERROR_UNEXPECTED);
     }
     response.command = command;
-    cpmm.sendAsyncMessage("RIL:SendStkResponse", response);
+    cpmm.sendAsyncMessage("RIL:SendStkResponse", {data: response});
   },
 
   sendStkMenuSelection: function sendStkMenuSelection(window,
@@ -452,8 +452,10 @@ RILContentHelper.prototype = {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
     }
-    cpmm.sendAsyncMessage("RIL:SendStkMenuSelection", {itemIdentifier: itemIdentifier,
-                                                       helpRequested: helpRequested});
+    cpmm.sendAsyncMessage("RIL:SendStkMenuSelection", {
+      data: {itemIdentifier: itemIdentifier,
+             helpRequested: helpRequested
+    }});
   },
 
   sendStkEventDownload: function sendStkEventDownload(window,
@@ -462,33 +464,43 @@ RILContentHelper.prototype = {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
     }
-    cpmm.sendAsyncMessage("RIL:SendStkEventDownload", {event: event});
+    cpmm.sendAsyncMessage("RIL:SendStkEventDownload", {data: {event: event}});
   },
 
-  _telephonyCallbacks: null,
-  _voicemailCallbacks: null,
-  _enumerateTelephonyCallbacks: null,
+  _callbackManagerById: null,
+  _enumerateTelephonyCallbackManagerById: null,
 
   voicemailStatus: null,
   voicemailNumber: null,
   voicemailDisplayName: null,
 
-  registerCallback: function registerCallback(callbackType, callback) {
-    let callbacks = this[callbackType];
-    if (!callbacks) {
-      callbacks = this[callbackType] = [];
+  registerCallback: function registerCallback(subscriptionId, callbackType, callback) {
+    if (!this._callbackManagerById) {
+      this._callbackManagerById = [];
     }
 
+    let mgr = this._callbackManagerById[subscriptionId];
+    if (!mgr) {
+      mgr = this._callbackManagerById[subscriptionId] = [];
+    }
+
+    let callbacks = mgr[callbackType];
+    if (!callbacks) {
+      callbacks = this._callbackManagerById[subscriptionId][callbackType] = [];
+    }
     if (callbacks.indexOf(callback) != -1) {
-      throw new Error("Already registered this callback!");
+      debug("Already registered this telephonyCallback.");
+      return;
     }
 
     callbacks.push(callback);
     if (DEBUG) debug("Registered " + callbackType + " callback: " + callback);
   },
 
-  unregisterCallback: function unregisterCallback(callbackType, callback) {
-    let callbacks = this[callbackType];
+  unregisterCallback: function unregisterCallback(subscriptionId, callbackType, callback) {
+    let callbacks;
+    callbacks = this._callbackManagerById[subscriptionId][callbackType];
+
     if (!callbacks) {
       return;
     }
@@ -496,29 +508,33 @@ RILContentHelper.prototype = {
     let index = callbacks.indexOf(callback);
     if (index != -1) {
       callbacks.splice(index, 1);
-      if (DEBUG) debug("Unregistered telephony callback: " + callback);
+      if (DEBUG) debug("Unregistered " + callbackType + " callback: " + callback);
     }
   },
 
-  registerTelephonyCallback: function registerTelephonyCallback(callback) {
-    this.registerCallback("_telephonyCallbacks", callback);
+  registerTelephonyCallback: function registerTelephonyCallback(subscriptionId, callback) {
+    this.registerCallback(subscriptionId, "_telephonyCallbacks", callback);
   },
 
-  unregisterTelephonyCallback: function unregisteTelephonyCallback(callback) {
-    this.unregisterCallback("_telephonyCallbacks", callback);
+  unregisterTelephonyCallback: function unregisteTelephonyCallback(subscriptionId, callback) {
+    this.unregisterCallback(subscriptionId, "_telephonyCallbacks", callback);
   },
 
   registerVoicemailCallback: function registerVoicemailCallback(callback) {
-    this.registerCallback("_voicemailCallbacks", callback);
+    // TODO Bug 818352 - add subscriptionId in Voicemail API
+    this.registerCallback(0, "_voicemailCallbacks", callback);
   },
 
   unregisterVoicemailCallback: function unregisteVoicemailCallback(callback) {
-    this.unregisterCallback("_voicemailCallbacks", callback);
+    // TODO Bug 818352 - add subscriptionId in Voicemail API
+    this.unregisterCallback(0, "_voicemailCallbacks", callback);
   },
 
-  registerTelephonyMsg: function registerTelephonyMsg() {
+  registerTelephonyMsg: function registerTelephonyMsg(subscriptionId) {
     debug("Registering for telephony-related messages");
-    cpmm.sendAsyncMessage("RIL:RegisterTelephonyMsg");
+    cpmm.sendAsyncMessage("RIL:RegisterTelephonyMsg", {
+      subscriptionId: subscriptionId
+    });
   },
 
   registerMobileConnectionMsg: function registerMobileConnectionMsg() {
@@ -531,73 +547,117 @@ RILContentHelper.prototype = {
     cpmm.sendAsyncMessage("RIL:RegisterVoicemailMsg");
   },
 
-  enumerateCalls: function enumerateCalls(callback) {
+  enumerateCalls: function enumerateCalls(subscriptionId, callback) {
     debug("Requesting enumeration of calls for callback: " + callback);
+    if (!this._enumerateTelephonyCallbackManagerById) {
+      this._enumerateTelephonyCallbackManagerById = [];
+    }
+
+    let mgr = this._enumerateTelephonyCallbackManagerById[subscriptionId];
+    if (!mgr) {
+      mgr = this._enumerateTelephonyCallbackManagerById[subscriptionId] = [];
+    }
+
+    mgr.push(callback);
+
     // We need 'requestId' to meet the 'RILContentHelper <--> RadioInterfaceLayer'
     // protocol.
     let requestId = this._getRandomId();
-    cpmm.sendAsyncMessage("RIL:EnumerateCalls", {requestId: requestId});
-    if (!this._enumerationTelephonyCallbacks) {
-      this._enumerationTelephonyCallbacks = [];
-    }
-    this._enumerationTelephonyCallbacks.push(callback);
+    cpmm.sendAsyncMessage("RIL:EnumerateCalls", {
+      subscriptionId: subscriptionId,
+      data: {requestId: requestId}
+    });
   },
 
-  startTone: function startTone(dtmfChar) {
+  startTone: function startTone(subscriptionId, dtmfChar) {
     debug("Sending Tone for " + dtmfChar);
-    cpmm.sendAsyncMessage("RIL:StartTone", dtmfChar);
+    cpmm.sendAsyncMessage("RIL:StartTone", {
+      subscriptionId: subscriptionId,
+      data: dtmfChar
+    });
   },
 
-  stopTone: function stopTone() {
+  stopTone: function stopTone(subscriptionId) {
     debug("Stopping Tone");
-    cpmm.sendAsyncMessage("RIL:StopTone");
+    cpmm.sendAsyncMessage("RIL:StopTone", {subscriptionId: subscriptionId});
   },
 
-  dial: function dial(number) {
+  dial: function dial(subscriptionId, number) {
     debug("Dialing " + number);
-    cpmm.sendAsyncMessage("RIL:Dial", number);
+    cpmm.sendAsyncMessage("RIL:Dial", {
+      subscriptionId: subscriptionId,
+      data: number
+    });
   },
 
-  dialEmergency: function dialEmergency(number) {
+  dialEmergency: function dialEmergency(subscriptionId, number) {
     debug("Dialing emergency " + number);
-    cpmm.sendAsyncMessage("RIL:DialEmergency", number);
+    cpmm.sendAsyncMessage("RIL:DialEmergency", {
+      subscriptionId: subscriptionId,
+      data: number
+    });
   },
 
-  hangUp: function hangUp(callIndex) {
+  hangUp: function hangUp(subscriptionId, callIndex) {
     debug("Hanging up call no. " + callIndex);
-    cpmm.sendAsyncMessage("RIL:HangUp", callIndex);
+    cpmm.sendAsyncMessage("RIL:HangUp", {
+      subscriptionId: subscriptionId,
+      data: callIndex
+    });
   },
 
-  answerCall: function answerCall(callIndex) {
-    cpmm.sendAsyncMessage("RIL:AnswerCall", callIndex);
+  answerCall: function answerCall(subscriptionId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:AnswerCall", {
+      subscriptionId: subscriptionId,
+      data: callIndex
+    });
   },
 
-  rejectCall: function rejectCall(callIndex) {
-    cpmm.sendAsyncMessage("RIL:RejectCall", callIndex);
+  rejectCall: function rejectCall(subscriptionId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:RejectCall", {
+      subscriptionId: subscriptionId,
+      data: callIndex
+    });
   },
 
-  holdCall: function holdCall(callIndex) {
-    cpmm.sendAsyncMessage("RIL:HoldCall", callIndex);
+  holdCall: function holdCall(subscriptionId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:HoldCall", {
+      subscriptionId: subscriptionId,
+      data: callIndex
+    });
   },
 
-  resumeCall: function resumeCall(callIndex) {
-    cpmm.sendAsyncMessage("RIL:ResumeCall", callIndex);
+  resumeCall: function resumeCall(subscriptionId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:ResumeCall", {
+      subscriptionId: subscriptionId,
+      data: callIndex
+    });
   },
 
-  get microphoneMuted() {
-    return cpmm.sendSyncMessage("RIL:GetMicrophoneMuted")[0];
+  getMicrophoneMuted: function getMicrophoneMuted(subscriptionId) {
+    return cpmm.sendSyncMessage("RIL:GetMicrophoneMuted", {
+      subscriptionId: subscriptionId
+    })[0];
   },
 
-  set microphoneMuted(value) {
-    cpmm.sendAsyncMessage("RIL:SetMicrophoneMuted", value);
+  setMicrophoneMuted: function getMicrophoneMuted(subscriptionId, value) {
+    cpmm.sendAsyncMessage("RIL:SetMicrophoneMuted", {
+      subscriptionId: subscriptionId,
+      data: value
+    });
   },
 
-  get speakerEnabled() {
-    return cpmm.sendSyncMessage("RIL:GetSpeakerEnabled")[0];
+  getSpeakerEnabled: function getSpeakerEnabled(subscriptionId) {
+    return cpmm.sendSyncMessage("RIL:GetSpeakerEnabled", {
+      subscriptionId: subscriptionId
+    })[0];
   },
 
-  set speakerEnabled(value) {
-    cpmm.sendAsyncMessage("RIL:SetSpeakerEnabled", value);
+  setSpeakerEnabled: function setSpeakerEnabled(subscriptionId, value) {
+    cpmm.sendAsyncMessage("RIL:SetSpeakerEnabled", {
+      subscriptionId: subscriptionId,
+      data: value
+    });
   },
 
   // nsIObserver
@@ -658,110 +718,113 @@ RILContentHelper.prototype = {
     debug("Received message '" + msg.name + "': " + JSON.stringify(msg.json));
     switch (msg.name) {
       case "RIL:CardStateChanged":
-        if (this.cardState != msg.json.cardState) {
-          this.cardState = msg.json.cardState;
+        if (this.cardState != msg.json.data.cardState) {
+          this.cardState = msg.json.data.cardState;
           Services.obs.notifyObservers(null, kCardStateChangedTopic, null);
         }
         break;
       case "RIL:IccInfoChanged":
-        this.updateICCInfo(msg.json, this.iccInfo);
+        this.updateICCInfo(msg.json.data, this.iccInfo);
         Services.obs.notifyObservers(null, kIccInfoChangedTopic, null);
         break;
       case "RIL:VoiceInfoChanged":
-        this.updateConnectionInfo(msg.json, this.voiceConnectionInfo);
+        this.updateConnectionInfo(msg.json.data, this.voiceConnectionInfo);
         Services.obs.notifyObservers(null, kVoiceChangedTopic, null);
         break;
       case "RIL:DataInfoChanged":
-        this.updateConnectionInfo(msg.json, this.dataConnectionInfo);
+        this.updateConnectionInfo(msg.json.data, this.dataConnectionInfo);
         Services.obs.notifyObservers(null, kDataChangedTopic, null);
         break;
       case "RIL:EnumerateCalls":
-        this.handleEnumerateCalls(msg.json.calls);
+        this.handleEnumerateCalls(msg.json.subscriptionId || 0,
+                                  msg.json.data.calls);
         break;
       case "RIL:GetAvailableNetworks":
-        this.handleGetAvailableNetworks(msg.json);
+        this.handleGetAvailableNetworks(msg.json.data);
         break;
       case "RIL:NetworkSelectionModeChanged":
-        this.networkSelectionMode = msg.json.mode;
+        this.networkSelectionMode = msg.json.data.mode;
         break;
       case "RIL:SelectNetwork":
-        this.handleSelectNetwork(msg.json,
+        this.handleSelectNetwork(msg.json.data,
                                  RIL.GECKO_NETWORK_SELECTION_MANUAL);
         break;
       case "RIL:SelectNetworkAuto":
-        this.handleSelectNetwork(msg.json,
+        this.handleSelectNetwork(msg.json.data,
                                  RIL.GECKO_NETWORK_SELECTION_AUTOMATIC);
         break;
       case "RIL:CallStateChanged":
-        this._deliverCallback("_telephonyCallbacks",
+        this._deliverCallback(msg.json.subscriptionId || 0,
+                              "_telephonyCallbacks",
                               "callStateChanged",
-                              [msg.json.callIndex, msg.json.state,
-                               msg.json.number, msg.json.isActive]);
+                              [msg.json.data.callIndex, msg.json.data.state,
+                               msg.json.data.number, msg.json.data.isActive]);
         break;
       case "RIL:CallError":
-        this._deliverCallback("_telephonyCallbacks",
+        this._deliverCallback(msg.json.subscriptionId || 0,
+                              "_telephonyCallbacks",
                               "notifyError",
-                              [msg.json.callIndex,
-                               msg.json.error]);
+                              [msg.json.data.callIndex,
+                               msg.json.data.error]);
         break;
       case "RIL:VoicemailNotification":
-        this.handleVoicemailNotification(msg.json);
+        this.handleVoicemailNotification(msg.json.data);
         break;
       case "RIL:VoicemailNumberChanged":
-        this.voicemailNumber = msg.json.number;
-        this.voicemailDisplayName = msg.json.alphaId;
+        this.voicemailNumber = msg.json.data.number;
+        this.voicemailDisplayName = msg.json.data.alphaId;
         break;
       case "RIL:CardLockResult":
-        if (msg.json.success) {
-          let result = new MobileICCCardLockResult(msg.json);
-          this.fireRequestSuccess(msg.json.requestId, result);
+        if (msg.json.data.success) {
+          let result = new MobileICCCardLockResult(msg.json.data);
+          this.fireRequestSuccess(msg.json.data.requestId, result);
         } else {
-          if (msg.json.rilMessageType == "iccSetCardLock" ||
-              msg.json.rilMessageType == "iccUnlockCardLock") {
-            let result = JSON.stringify({lockType: msg.json.lockType,
-                                         retryCount: msg.json.retryCount});
+          if (msg.json.data.rilMessageType == "iccSetCardLock" ||
+              msg.json.data.rilMessageType == "iccUnlockCardLock") {
+            let result = JSON.stringify({lockType: msg.json.data.lockType,
+                                         retryCount: msg.json.data.retryCount});
             Services.obs.notifyObservers(null, kIccCardLockErrorTopic,
                                          result);
           }
-          this.fireRequestError(msg.json.requestId, msg.json.errorMsg);
+          this.fireRequestError(msg.json.data.requestId, msg.json.data.errorMsg);
         }
         break;
       case "RIL:USSDReceived":
-        let res = JSON.stringify({message: msg.json.message,
-                                  sessionEnded: msg.json.sessionEnded});
+        let res = JSON.stringify({message: msg.json.data.message,
+                                  sessionEnded: msg.json.data.sessionEnded});
         Services.obs.notifyObservers(null, kUssdReceivedTopic, res);
         break;
       case "RIL:SendMMI:Return:OK":
       case "RIL:CancelMMI:Return:OK":
-        request = this.takeRequest(msg.json.requestId);
+        request = this.takeRequest(msg.json.data.requestId);
         if (request) {
-          Services.DOMRequest.fireSuccess(request, msg.json.result);
+          Services.DOMRequest.fireSuccess(request, msg.json.data.result);
         }
         break;
       case "RIL:SendMMI:Return:KO":
       case "RIL:CancelMMI:Return:KO":
-        request = this.takeRequest(msg.json.requestId);
+        request = this.takeRequest(msg.json.data.requestId);
         if (request) {
-          Services.DOMRequest.fireError(request, msg.json.errorMsg);
+          Services.DOMRequest.fireError(request, msg.json.data.errorMsg);
         }
         break;
       case "RIL:StkCommand":
-        let jsonString = JSON.stringify(msg.json);
+        let jsonString = JSON.stringify(msg.json.data);
         Services.obs.notifyObservers(null, kStkCommandTopic, jsonString);
         break;
       case "RIL:StkSessionEnd":
         Services.obs.notifyObservers(null, kStkSessionEndTopic, null);
         break;
       case "RIL:DataError":
-        this.updateConnectionInfo(msg.json, this.dataConnectionInfo);
-        Services.obs.notifyObservers(null, kDataErrorTopic, msg.json.error);
+        this.updateConnectionInfo(msg.json.data, this.dataConnectionInfo);
+        Services.obs.notifyObservers(null, kDataErrorTopic, msg.json.data.error);
         break;
     }
   },
 
-  handleEnumerateCalls: function handleEnumerateCalls(calls) {
-    debug("handleEnumerateCalls: " + JSON.stringify(calls));
-    let callback = this._enumerationTelephonyCallbacks.shift();
+  handleEnumerateCalls: function handleEnumerateCalls(subscriptionId, calls) {
+    debug("handleEnumerateCalls: no. " + subscriptionId + " " + JSON.stringify(calls));
+    let callback = this._enumerateTelephonyCallbackManagerById[subscriptionId].shift();
     for (let i in calls) {
       let call = calls[i];
       let keepGoing;
@@ -849,7 +912,9 @@ RILContentHelper.prototype = {
     }
 
     if (changed) {
-      this._deliverCallback("_voicemailCallbacks",
+      // TODO Bug 818352 - add subscriptionId in Voicemail API
+      this._deliverCallback(0,
+                            "_voicemailCallbacks",
                             "voicemailNotification",
                             [this.voicemailStatus]);
     }
@@ -859,17 +924,15 @@ RILContentHelper.prototype = {
     return gUUIDGenerator.generateUUID().toString();
   },
 
-  _deliverCallback: function _deliverCallback(callbackType, name, args) {
-    let thisCallbacks = this[callbackType];
+  _deliverCallback: function _deliverCallback(subscriptionId, callbackType, name, args) {
+    debug("_deliverCallback type: " + callbackType + " to subscription no. " + subscriptionId);
+    let thisCallbacks = this._callbackManagerById[subscriptionId][callbackType];
     if (!thisCallbacks) {
       return;
     }
 
     let callbacks = thisCallbacks.slice();
     for each (let callback in callbacks) {
-      if (thisCallbacks.indexOf(callback) == -1) {
-        continue;
-      }
       let handler = callback[name];
       if (typeof handler != "function") {
         throw new Error("No handler for " + name);

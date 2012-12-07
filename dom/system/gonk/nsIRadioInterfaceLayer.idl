@@ -139,11 +139,13 @@ interface nsIRILContactCallback : nsISupports
  * Helper that runs in the content process and exposes information
  * to the DOM.
  */
-[scriptable, uuid(2abe554b-e07c-44b0-9719-02190460188d)]
+[scriptable, uuid(b1c0c5cc-04b6-4ae0-a99c-2fda64694fb7)]
 interface nsIRILContentHelper : nsIMobileConnectionProvider
 {
-  void registerTelephonyCallback(in nsIRILTelephonyCallback callback);
-  void unregisterTelephonyCallback(in nsIRILTelephonyCallback callback);
+  void registerTelephonyCallback(in unsigned long subscriptionId,
+                                 in nsIRILTelephonyCallback callback);
+  void unregisterTelephonyCallback(in unsigned long subscriptionId,
+                                   in nsIRILTelephonyCallback callback);
 
   void registerVoicemailCallback(in nsIRILVoicemailCallback callback);
   void unregisterVoicemailCallback(in nsIRILVoicemailCallback callback);
@@ -156,7 +158,7 @@ interface nsIRILContentHelper : nsIMobileConnectionProvider
    * the registration list once the chrome receives a 'child-process-shutdown'
    * message.
    */
-  void registerTelephonyMsg();
+  void registerTelephonyMsg(in unsigned long subscriptionId);
 
   /**
    * Called when a content process registers receiving unsolicited messages from
@@ -172,25 +174,30 @@ interface nsIRILContentHelper : nsIMobileConnectionProvider
    * Will continue calling callback.enumerateCallState until the callback
    * returns false.
    */
-  void enumerateCalls(in nsIRILTelephonyCallback callback);
+  void enumerateCalls(in unsigned long subscriptionId,
+                      in nsIRILTelephonyCallback callback);
 
   /**
    * Functionality for making and managing phone calls.
    */
-  void dial(in DOMString number);
-  void dialEmergency(in DOMString number);
-  void hangUp(in unsigned long callIndex);
+  void dial(in unsigned long subscriptionId, in DOMString number);
+  void dialEmergency(in unsigned long subscriptionId, in DOMString number);
+  void hangUp(in unsigned long subscriptionId, in unsigned long callIndex);
 
-  void startTone(in DOMString dtmfChar);
-  void stopTone();
+  void startTone(in unsigned long subscriptionId, in DOMString dtmfChar);
+  void stopTone(in unsigned long subscriptionId);
 
-  void answerCall(in unsigned long callIndex);
-  void rejectCall(in unsigned long callIndex);
-  void holdCall(in unsigned long callIndex);
-  void resumeCall(in unsigned long callIndex);
+  void answerCall(in unsigned long subscriptionId, in unsigned long callIndex);
+  void rejectCall(in unsigned long subscriptionId, in unsigned long callIndex);
+  void holdCall(in unsigned long subscriptionId, in unsigned long callIndex);
+  void resumeCall(in unsigned long subscriptionId, in unsigned long callIndex);
 
-  attribute bool microphoneMuted;
-  attribute bool speakerEnabled;
+  bool getMicrophoneMuted(in unsigned long subscriptionId);
+  void setMicrophoneMuted(in unsigned long subscriptionId,
+                          in bool muted);
+
+  bool getSpeakerEnabled(in unsigned long subscriptionId);
+  void setSpeakerEnabled(in unsigned long subscriptionId, in bool enabled);
 
   readonly attribute nsIDOMMozVoicemailStatus voicemailStatus;
   readonly attribute DOMString voicemailNumber;
@@ -315,4 +322,10 @@ interface nsIRadioInterfaceLayer : nsISupports
    */
   void getICCContacts(in DOMString contactType,
                       in nsIRILContactCallback callback);
+};
+
+[scriptable, uuid(76f084ab-30ef-489a-bc64-af7c83007bc1)]
+interface nsIMSimRadioInterfaceLayer : nsISupports
+{
+  readonly attribute jsval mRILs; // nsIRadioterfaceLayer[]
 };
