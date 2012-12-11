@@ -25,6 +25,8 @@
 #include "CallEvent.h"
 #include "TelephonyCall.h"
 
+// TODO Determine default phone.
+#define DEFAULT_PHONE_INDEX 0
 USING_TELEPHONY_NAMESPACE
 using namespace mozilla::dom::gonk;
 
@@ -49,7 +51,7 @@ Telephony::Telephony()
 Telephony::~Telephony()
 {
   if (mRIL && mRILTelephonyCallback) {
-    mRIL->UnregisterTelephonyCallback(mRILTelephonyCallback);
+    mRIL->UnregisterTelephonyCallback(DEFAULT_PHONE_INDEX, mRILTelephonyCallback);
   }
 
   if (mRooted) {
@@ -88,13 +90,13 @@ Telephony::Create(nsPIDOMWindow* aOwner, nsIRILContentHelper* aRIL)
   telephony->mRIL = aRIL;
   telephony->mRILTelephonyCallback = new RILTelephonyCallback(telephony);
 
-  nsresult rv = aRIL->EnumerateCalls(telephony->mRILTelephonyCallback);
+  nsresult rv = aRIL->EnumerateCalls(DEFAULT_PHONE_INDEX, telephony->mRILTelephonyCallback);
   NS_ENSURE_SUCCESS(rv, nullptr);
 
-  rv = aRIL->RegisterTelephonyCallback(telephony->mRILTelephonyCallback);
+  rv = aRIL->RegisterTelephonyCallback(DEFAULT_PHONE_INDEX, telephony->mRILTelephonyCallback);
   NS_ENSURE_SUCCESS(rv, nullptr);
 
-  rv = aRIL->RegisterTelephonyMsg();
+  rv = aRIL->RegisterTelephonyMsg(DEFAULT_PHONE_INDEX);
   NS_ENSURE_SUCCESS(rv, nullptr);
 
   return telephony.forget();
@@ -157,9 +159,9 @@ Telephony::DialInternal(bool isEmergency,
 
   nsresult rv;
   if (isEmergency) {
-    rv = mRIL->DialEmergency(aNumber);
+    rv = mRIL->DialEmergency(DEFAULT_PHONE_INDEX, aNumber);
   } else {
-    rv = mRIL->Dial(aNumber);
+    rv = mRIL->Dial(DEFAULT_PHONE_INDEX, aNumber);
   }
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -232,7 +234,7 @@ Telephony::DialEmergency(const nsAString& aNumber, nsIDOMTelephonyCall** aResult
 NS_IMETHODIMP
 Telephony::GetMuted(bool* aMuted)
 {
-  nsresult rv = mRIL->GetMicrophoneMuted(aMuted);
+  nsresult rv = mRIL->GetMicrophoneMuted(DEFAULT_PHONE_INDEX, aMuted);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
@@ -241,7 +243,7 @@ Telephony::GetMuted(bool* aMuted)
 NS_IMETHODIMP
 Telephony::SetMuted(bool aMuted)
 {
-  nsresult rv = mRIL->SetMicrophoneMuted(aMuted);
+  nsresult rv = mRIL->SetMicrophoneMuted(DEFAULT_PHONE_INDEX, aMuted);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
@@ -250,7 +252,7 @@ Telephony::SetMuted(bool aMuted)
 NS_IMETHODIMP
 Telephony::GetSpeakerEnabled(bool* aSpeakerEnabled)
 {
-  nsresult rv = mRIL->GetSpeakerEnabled(aSpeakerEnabled);
+  nsresult rv = mRIL->GetSpeakerEnabled(DEFAULT_PHONE_INDEX, aSpeakerEnabled);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
@@ -259,7 +261,7 @@ Telephony::GetSpeakerEnabled(bool* aSpeakerEnabled)
 NS_IMETHODIMP
 Telephony::SetSpeakerEnabled(bool aSpeakerEnabled)
 {
-  nsresult rv = mRIL->SetSpeakerEnabled(aSpeakerEnabled);
+  nsresult rv = mRIL->SetSpeakerEnabled(DEFAULT_PHONE_INDEX, aSpeakerEnabled);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
@@ -325,7 +327,7 @@ Telephony::StartTone(const nsAString& aDTMFChar)
     return NS_ERROR_INVALID_ARG;
   }
 
-  nsresult rv = mRIL->StartTone(aDTMFChar);
+  nsresult rv = mRIL->StartTone(DEFAULT_PHONE_INDEX, aDTMFChar);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
@@ -334,7 +336,7 @@ Telephony::StartTone(const nsAString& aDTMFChar)
 NS_IMETHODIMP
 Telephony::StopTone()
 {
-  nsresult rv = mRIL->StopTone();
+  nsresult rv = mRIL->StopTone(DEFAULT_PHONE_INDEX);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
