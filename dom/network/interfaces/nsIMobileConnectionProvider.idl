@@ -25,24 +25,32 @@ interface nsIMobileConnectionProvider : nsISupports
    * the registration list once the chrome receives a 'child-process-shutdown'
    * message.
    */
-  void registerMobileConnectionMsg();
+  void registerMobileConnectionMsg(in unsigned long subscriptionId);
+  DOMString getCardState(in unsigned long subscriptionId);
+  nsIDOMMozMobileICCInfo getIccInfo(in unsigned long subscriptionId);
+  nsIDOMMozMobileConnectionInfo getVoiceConnectionInfo(in unsigned long subscriptionId);
+  nsIDOMMozMobileConnectionInfo getDataConnectionInfo(in unsigned long subscriptionId);
+  DOMString getNetworkSelectionMode(in unsigned long subscriptionId);
+  
+  nsIDOMDOMRequest getNetworks(in nsIDOMWindow window, 
+                               in unsigned long subscriptionId);
 
-  readonly attribute DOMString cardState;
-  readonly attribute nsIDOMMozMobileICCInfo iccInfo;
-  readonly attribute nsIDOMMozMobileConnectionInfo voiceConnectionInfo;
-  readonly attribute nsIDOMMozMobileConnectionInfo dataConnectionInfo;
-  readonly attribute DOMString networkSelectionMode;
+  nsIDOMDOMRequest selectNetwork(in nsIDOMWindow window, 
+                                 in nsIDOMMozMobileNetworkInfo network, 
+                                 in unsigned long subscriptionId);
+  nsIDOMDOMRequest selectNetworkAutomatically(in nsIDOMWindow window,
+                                              in unsigned long subscriptionId);
 
-  nsIDOMDOMRequest getNetworks(in nsIDOMWindow window);
-  nsIDOMDOMRequest selectNetwork(in nsIDOMWindow window, in nsIDOMMozMobileNetworkInfo network);
-  nsIDOMDOMRequest selectNetworkAutomatically(in nsIDOMWindow window);
-
-  nsIDOMDOMRequest getCardLock(in nsIDOMWindow window, in DOMString lockType);
-  nsIDOMDOMRequest unlockCardLock(in nsIDOMWindow window, in jsval info);
-  nsIDOMDOMRequest setCardLock(in nsIDOMWindow window, in jsval info);
-
-  nsIDOMDOMRequest sendMMI(in nsIDOMWindow window, in DOMString mmi);
-  nsIDOMDOMRequest cancelMMI(in nsIDOMWindow window);
+  nsIDOMDOMRequest getCardLock(in nsIDOMWindow window, in DOMString lockType, 
+                               in unsigned long subscriptionId);
+  nsIDOMDOMRequest unlockCardLock(in nsIDOMWindow window, in jsval info,
+                                  in unsigned long subscriptionId);
+  nsIDOMDOMRequest setCardLock(in nsIDOMWindow window, in jsval info,
+                               in unsigned long subscriptionId);
+  nsIDOMDOMRequest sendMMI(in nsIDOMWindow window, in DOMString mmi,
+                           in unsigned long subscriptionId);
+  nsIDOMDOMRequest cancelMMI(in nsIDOMWindow window,
+                             in unsigned long subscriptionId);
 
   void sendStkResponse(in nsIDOMWindow window,
                        in jsval        command,
