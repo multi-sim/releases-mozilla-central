@@ -1,0 +1,20 @@
+/* -*- Mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; tab-width: 40 -*- */
+/* vim: set ts=2 et sw=2 tw=40: */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#include "nsIDOMEventTarget.idl"
+
+interface nsIDOMEventListener;
+interface nsIDOMMozMobileConnection;
+
+[scriptable, builtinclass, uuid(0de3f450-307e-4ef9-8a4d-570539a9def2)]
+interface nsIDOMMozMobileConnectionManager : nsISupports
+{
+  readonly attribute jsval mobileConnections;
+
+  readonly attribute nsIDOMMozMobileConnection defaultMobileConnection;
+
+};
+
