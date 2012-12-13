@@ -38,7 +38,7 @@
 #include "mozilla/StaticPtr.h"
 #include "Connection.h"
 #ifdef MOZ_B2G_RIL
-#include "MobileConnection.h"
+#include "MobileConnectionManager.h"
 #endif
 #include "nsIIdleObserver.h"
 #include "nsIPermissionManager.h"
@@ -122,7 +122,7 @@ NS_INTERFACE_MAP_BEGIN(Navigator)
 #endif
   NS_INTERFACE_MAP_ENTRY(nsIDOMMozNavigatorNetwork)
 #ifdef MOZ_B2G_RIL
-  NS_INTERFACE_MAP_ENTRY(nsIMozNavigatorMobileConnection)
+  NS_INTERFACE_MAP_ENTRY(nsIMozNavigatorMobileConnectionManager)
 #endif
 #ifdef MOZ_B2G_BT
   NS_INTERFACE_MAP_ENTRY(nsIDOMNavigatorBluetooth)
@@ -188,9 +188,9 @@ Navigator::Invalidate()
   }
 
 #ifdef MOZ_B2G_RIL
-  if (mMobileConnection) {
-    mMobileConnection->Shutdown();
-    mMobileConnection = nullptr;
+  if (mMobileConnectionManager) {
+    mMobileConnectionManager->Shutdown();
+    mMobileConnectionManager = nullptr;
   }
 #endif
 
@@ -1221,14 +1221,15 @@ Navigator::GetMozConnection(nsIDOMMozConnection** aConnection)
 
 #ifdef MOZ_B2G_RIL
 //*****************************************************************************
-//    Navigator::nsINavigatorMobileConnection
+//    Navigator::nsINavigatorMobileConnectionManager
 //*****************************************************************************
 NS_IMETHODIMP
-Navigator::GetMozMobileConnection(nsIDOMMozMobileConnection** aMobileConnection)
+Navigator::GetMozMobileConnectionManager(nsIDOMMozMobileConnectionManager** 
+                                         aMobileConnectionManager)
 {
-  *aMobileConnection = nullptr;
+  *aMobileConnectionManager = nullptr;
 
-  if (!mMobileConnection) {
+  if (!mMobileConnectionManager) {
     nsCOMPtr<nsPIDOMWindow> window = do_QueryReferent(mWindow);
     NS_ENSURE_TRUE(window, NS_OK);
 
@@ -1236,11 +1237,11 @@ Navigator::GetMozMobileConnection(nsIDOMMozMobileConnection** aMobileConnection)
       return NS_OK;
     }
 
-    mMobileConnection = new network::MobileConnection();
-    mMobileConnection->Init(window);
+    mMobileConnectionManager = new network::MobileConnectionManager();
+    mMobileConnectionManager->Init(window);
   }
 
-  NS_ADDREF(*aMobileConnection = mMobileConnection);
+  NS_ADDREF(*aMobileConnectionManager = mMobileConnectionManager);
   return NS_OK;
 }
 #endif // MOZ_B2G_RIL

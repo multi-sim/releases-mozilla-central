@@ -32,7 +32,7 @@ public:
 
   NS_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetHelper::)
 
-  MobileConnection();
+  MobileConnection(uint32_t subscriptionId);
 
   void Init(nsPIDOMWindow *aWindow);
   void Shutdown();

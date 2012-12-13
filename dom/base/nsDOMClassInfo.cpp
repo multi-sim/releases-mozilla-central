@@ -498,6 +498,7 @@ using mozilla::dom::indexedDB::IDBWrapperCache;
 #include "nsIDOMConnection.h"
 #ifdef MOZ_B2G_RIL
 #include "nsIDOMMobileConnection.h"
+#include "nsIDOMMobileConnectionManager.h"
 #endif
 #include "USSDReceivedEvent.h"
 #include "DataErrorEvent.h"
@@ -1517,6 +1518,10 @@ static nsDOMClassInfoData sClassInfoData[] = {
 #ifdef MOZ_B2G_RIL
   NS_DEFINE_CLASSINFO_DATA(MozMobileConnection, nsDOMGenericSH,
                            DOM_DEFAULT_SCRIPTABLE_FLAGS)
+                           
+  NS_DEFINE_CLASSINFO_DATA(MozMobileConnectionManager, nsDOMGenericSH,
+                           DOM_DEFAULT_SCRIPTABLE_FLAGS)
+
 #endif
 
   NS_DEFINE_CLASSINFO_DATA(USSDReceivedEvent, nsDOMGenericSH,
@@ -2468,7 +2473,7 @@ nsDOMClassInfo::Init()
     DOM_CLASSINFO_MAP_CONDITIONAL_ENTRY(nsIDOMMozNavigatorNetwork,
                                         network::IsAPIEnabled())
 #ifdef MOZ_B2G_RIL
-    DOM_CLASSINFO_MAP_ENTRY(nsIMozNavigatorMobileConnection)
+    DOM_CLASSINFO_MAP_ENTRY(nsIMozNavigatorMobileConnectionManager)
 #endif
 #ifdef MOZ_B2G_BT
     DOM_CLASSINFO_MAP_ENTRY(nsIDOMNavigatorBluetooth)
@@ -4108,6 +4113,11 @@ nsDOMClassInfo::Init()
      DOM_CLASSINFO_MAP_ENTRY(nsIDOMMozMobileConnection)
      DOM_CLASSINFO_MAP_ENTRY(nsIDOMEventTarget)
   DOM_CLASSINFO_MAP_END
+  
+  DOM_CLASSINFO_MAP_BEGIN(MozMobileConnectionManager, nsIDOMMozMobileConnectionManager)
+     DOM_CLASSINFO_MAP_ENTRY(nsIDOMMozMobileConnectionManager)
+     DOM_CLASSINFO_MAP_ENTRY(nsIDOMEventTarget)
+  DOM_CLASSINFO_MAP_END  
 #endif
 
   DOM_CLASSINFO_MAP_BEGIN(USSDReceivedEvent, nsIDOMUSSDReceivedEvent)
