@@ -139,7 +139,7 @@ interface nsIRILContactCallback : nsISupports
  * Helper that runs in the content process and exposes information
  * to the DOM.
  */
-[scriptable, uuid(483a7c55-6f14-42eb-82d1-278300caf5c2)]
+[scriptable, uuid(9517c6b2-3a59-47cd-97ef-d0084ed5aa26)]
 interface nsIRILContentHelper : nsIMobileConnectionProvider
 {
   void registerTelephonyCallback(in unsigned long subscriptionId,
@@ -194,12 +194,10 @@ interface nsIRILContentHelper : nsIMobileConnectionProvider
   void holdCall(in unsigned long subscriptionId, in unsigned long callIndex);
   void resumeCall(in unsigned long subscriptionId, in unsigned long callIndex);
 
-  bool getMicrophoneMuted(in unsigned long subscriptionId);
-  void setMicrophoneMuted(in unsigned long subscriptionId,
-                          in bool muted);
-
-  bool getSpeakerEnabled(in unsigned long subscriptionId);
-  void setSpeakerEnabled(in unsigned long subscriptionId, in bool enabled);
+  // Audio is controled by the manager of subscription instances, so
+  // no subscriptionId needs to be specified.
+  attribute bool microphoneMuted;
+  attribute bool speakerEnabled;
 
   nsIDOMMozVoicemailStatus getVoicemailStatus(in unsigned long subscriptionId);
   DOMString getVoicemailNumber(in unsigned long subscriptionId);

@@ -7,23 +7,27 @@
 #include "nsIDOMEventTarget.idl"
 
 interface nsIDOMEventListener;
-interface nsIDOMTelephonyCall;
+interface nsIDOMTelephony;
 
-[scriptable, builtinclass, uuid(ca46b0d4-3edd-4500-8d03-b24b7449f84c)]
-interface nsIDOMTelephony : nsIDOMEventTarget
+[scriptable, builtinclass, uuid(b20f14ff-dcef-46b8-8053-94d55332ae90)]
+interface nsIDOMTelephonyManager : nsIDOMEventTarget
 {
-  nsIDOMTelephonyCall dial(in DOMString number);
-  nsIDOMTelephonyCall dialEmergency(in DOMString number);
-
-  // The call that is "active", i.e. receives microphone input and tones
-  // generated via startTone.
-  readonly attribute jsval active;
+  attribute boolean muted;
+  attribute boolean speakerEnabled;
 
   // Array of all calls that are currently connected.
   readonly attribute jsval calls;
 
-  void startTone(in DOMString tone);
-  void stopTone();
+  /**
+   * Indicate phone state in terms of audio control.
+   *
+   * Possible values: 'ringtone', 'incall', 'idle'
+   */
+  readonly attribute DOMString phoneState;
+
+  readonly attribute jsval phones;
+
+  readonly attribute nsIDOMTelephony defaultPhone;
 
   [implicit_jscontext] attribute jsval onincoming;
   [implicit_jscontext] attribute jsval oncallschanged;
