@@ -9,6 +9,7 @@
 
 #include "TelephonyCommon.h"
 
+#include "TelephonyManager.h"
 #include "nsIDOMTelephony.h"
 #include "nsIDOMTelephonyCall.h"
 #include "nsIRadioInterfaceLayer.h"
@@ -21,6 +22,8 @@ BEGIN_TELEPHONY_NAMESPACE
 class Telephony : public nsDOMEventTargetHelper,
                   public nsIDOMTelephony
 {
+  nsRefPtr<TelephonyManager> mTelephonyManager;
+
   nsCOMPtr<nsIRILContentHelper> mRIL;
   nsCOMPtr<nsIRILTelephonyCallback> mRILTelephonyCallback;
 
@@ -32,6 +35,7 @@ class Telephony : public nsDOMEventTargetHelper,
   JSObject* mCallsArray;
 
   bool mRooted;
+  uint32_t mPhoneIndex;
 
 public:
   NS_DECL_ISUPPORTS_INHERITED
@@ -43,7 +47,7 @@ public:
                                                    nsDOMEventTargetHelper)
 
   static already_AddRefed<Telephony>
-  Create(nsPIDOMWindow* aOwner, nsIRILContentHelper* aRIL);
+  Create(TelephonyManager* aTelephonyManager, uint32_t aPhoneIndex, nsIRILContentHelper* aRIL);
 
   nsIDOMEventTarget*
   ToIDOMEventTarget() const
@@ -59,21 +63,14 @@ public:
   }
 
   void
-  AddCall(TelephonyCall* aCall)
-  {
-    NS_ASSERTION(!mCalls.Contains(aCall), "Already know about this one!");
-    mCalls.AppendElement(aCall);
-    mCallsArray = nullptr;
-    NotifyCallsChanged(aCall);
-  }
+  AddCall(TelephonyCall* aCall);
 
   void
-  RemoveCall(TelephonyCall* aCall)
+  RemoveCall(TelephonyCall* aCall);
+
+  uint32_t PhoneIndex() const
   {
-    NS_ASSERTION(mCalls.Contains(aCall), "Didn't know about this one!");
-    mCalls.RemoveElement(aCall);
-    mCallsArray = nullptr;
-    NotifyCallsChanged(aCall);
+    return mPhoneIndex;
   }
 
   nsIRILContentHelper*
@@ -88,9 +85,6 @@ private:
 
   already_AddRefed<TelephonyCall>
   CreateNewDialingCall(const nsAString& aNumber);
-
-  void
-  NoteDialedCallFromOtherInstance(const nsAString& aNumber);
 
   nsresult
   NotifyCallsChanged(TelephonyCall* aCall);

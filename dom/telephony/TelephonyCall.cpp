@@ -12,8 +12,6 @@
 #include "Telephony.h"
 #include "DOMError.h"
 
-// TODO Determine default phone.
-#define DEFAULT_PHONE_INDEX 0
 USING_TELEPHONY_NAMESPACE
 
 // static
@@ -187,6 +185,13 @@ TelephonyCall::GetError(nsIDOMDOMError** aError)
 }
 
 NS_IMETHODIMP
+TelephonyCall::GetSubscriptionId(uint32_t* aSubscriptionId)
+{
+  *aSubscriptionId = mTelephony->PhoneIndex();
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 TelephonyCall::Answer()
 {
   if (mCallState != nsIRadioInterfaceLayer::CALL_STATE_INCOMING) {
@@ -194,7 +199,7 @@ TelephonyCall::Answer()
     return NS_OK;
   }
 
-  nsresult rv = mTelephony->RIL()->AnswerCall(DEFAULT_PHONE_INDEX, mCallIndex);
+  nsresult rv = mTelephony->RIL()->AnswerCall(mTelephony->PhoneIndex(), mCallIndex);
   NS_ENSURE_SUCCESS(rv, rv);
 
   ChangeStateInternal(nsIRadioInterfaceLayer::CALL_STATE_CONNECTING, true);
@@ -211,8 +216,8 @@ TelephonyCall::HangUp()
   }
 
   nsresult rv = mCallState == nsIRadioInterfaceLayer::CALL_STATE_INCOMING ?
-                mTelephony->RIL()->RejectCall(DEFAULT_PHONE_INDEX, mCallIndex) :
-                mTelephony->RIL()->HangUp(DEFAULT_PHONE_INDEX, mCallIndex);
+                mTelephony->RIL()->RejectCall(mTelephony->PhoneIndex(), mCallIndex) :
+                mTelephony->RIL()->HangUp(mTelephony->PhoneIndex(), mCallIndex);
   NS_ENSURE_SUCCESS(rv, rv);
 
   ChangeStateInternal(nsIRadioInterfaceLayer::CALL_STATE_DISCONNECTING, true);
@@ -227,7 +232,7 @@ TelephonyCall::Hold()
     return NS_OK;
   }
   
-  nsresult rv = mTelephony->RIL()->HoldCall(DEFAULT_PHONE_INDEX, mCallIndex);
+  nsresult rv = mTelephony->RIL()->HoldCall(mTelephony->PhoneIndex(), mCallIndex);
   NS_ENSURE_SUCCESS(rv,rv);
   
   ChangeStateInternal(nsIRadioInterfaceLayer::CALL_STATE_HOLDING, true);
@@ -242,7 +247,7 @@ TelephonyCall::Resume()
     return NS_OK;
   }
   
-  nsresult rv = mTelephony->RIL()->ResumeCall(DEFAULT_PHONE_INDEX, mCallIndex);
+  nsresult rv = mTelephony->RIL()->ResumeCall(mTelephony->PhoneIndex(), mCallIndex);
   NS_ENSURE_SUCCESS(rv,rv);
   
   ChangeStateInternal(nsIRadioInterfaceLayer::CALL_STATE_RESUMING, true);

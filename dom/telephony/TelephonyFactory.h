@@ -7,14 +7,12 @@
 #ifndef mozilla_dom_telephony_telephonyfactory_h__
 #define mozilla_dom_telephony_telephonyfactory_h__
 
-#include "nsIDOMTelephony.h"
+#include "nsIDOMTelephonyManager.h"
 #include "nsIDOMVoicemail.h"
 #include "nsPIDOMWindow.h"
-
-// Implemented in Telephony.cpp / Voicemail.cpp.
-
+// Implemented in TelephonyManager.cpp / Voicemail.cpp.
 nsresult
-NS_NewTelephony(nsPIDOMWindow* aWindow, nsIDOMTelephony** aTelephony);
+NS_NewTelephonyManager(nsPIDOMWindow* aWindow, nsIDOMTelephonyManager** aManager);
 
 nsresult
 NS_NewVoicemail(nsPIDOMWindow* aWindow, nsIDOMMozVoicemail** aVoicemail);
