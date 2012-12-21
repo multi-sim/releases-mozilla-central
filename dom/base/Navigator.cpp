@@ -173,8 +173,8 @@ Navigator::Invalidate()
   }
 
 #ifdef MOZ_B2G_RIL
-  if (mTelephony) {
-    mTelephony = nullptr;
+  if (mTelephonyManager) {
+    mTelephonyManager = nullptr;
   }
 
   if (mVoicemail) {
@@ -1156,22 +1156,21 @@ Navigator::GetMozSms(nsIDOMMozSmsManager** aSmsManager)
 //*****************************************************************************
 
 NS_IMETHODIMP
-Navigator::GetMozTelephony(nsIDOMTelephony** aTelephony)
+Navigator::GetMozTelephonyManager(nsIDOMTelephonyManager** aTelephonyManager)
 {
-  nsCOMPtr<nsIDOMTelephony> telephony = mTelephony;
-
-  if (!telephony) {
+  nsCOMPtr<nsIDOMTelephonyManager> telephonyManager = mTelephonyManager;
+  if (!telephonyManager) {
     nsCOMPtr<nsPIDOMWindow> window = do_QueryReferent(mWindow);
     NS_ENSURE_TRUE(window, NS_ERROR_FAILURE);
 
-    nsresult rv = NS_NewTelephony(window, getter_AddRefs(mTelephony));
+    nsresult rv = NS_NewTelephonyManager(window, getter_AddRefs(mTelephonyManager));
     NS_ENSURE_SUCCESS(rv, rv);
 
-    // mTelephony may be null here!
-    telephony = mTelephony;
+    // mTelephonyManager may be null here!
+    telephonyManager = mTelephonyManager;
   }
 
-  telephony.forget(aTelephony);
+  telephonyManager.forget(aTelephonyManager);
   return NS_OK;
 }
 
