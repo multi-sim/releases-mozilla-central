@@ -5,16 +5,25 @@ MARIONETTE_TIMEOUT = 10000;
 
 SpecialPowers.addPermission("telephony", true, document);
 
-let telephony = window.navigator.mozTelephony;
+let mgr = window.navigator.mozTelephonyManager;
+let telephony = mgr.defaultPhone;
 let number = "5555552368";
 let outgoing;
 let calls;
+let PHONE_NUMBER = 2;
 
 function verifyInitialState() {
   log("Verifying initial state.");
+  ok(mgr);
+  ok(mgr.phones);
+  is(mgr.phones.length, PHONE_NUMBER);
+  is(mgr.phones[0], telephony);
+
   ok(telephony);
   is(telephony.active, null);
+  ok(mgr.calls);
   ok(telephony.calls);
+  is(mgr.calls.length, 0);
   is(telephony.calls.length, 0);
   calls = telephony.calls;
 
@@ -35,13 +44,17 @@ function dial() {
 
   is(outgoing, telephony.active);
   //ok(telephony.calls === calls); // bug 717414
+  is(mgr.calls.length, 1);
   is(telephony.calls.length, 1);
+  is(mgr.calls[0], outgoing);
   is(telephony.calls[0], outgoing);
 
   outgoing.onalerting = function onalerting(event) {
     log("Received 'onalerting' call event.");
     is(outgoing, event.call);
     is(outgoing.state, "alerting");
+
+    is(mgr.phoneState, "incall");
 
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
@@ -85,7 +98,10 @@ function hangUp() {
     is(outgoing.state, "disconnected");
 
     is(telephony.active, null);
+    is(mgr.calls.length, 0);
     is(telephony.calls.length, 0);
+
+    is(mgr.phoneState, "idle");
 
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
