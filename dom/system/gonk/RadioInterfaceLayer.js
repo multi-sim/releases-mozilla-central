@@ -46,6 +46,7 @@ const kSysClockChangeObserverTopic       = "system-clock-change";
 const kTimeNitzAutomaticUpdateEnabled    = "time.nitz.automatic-update.enabled";
 const DOM_SMS_DELIVERY_RECEIVED          = "received";
 const DOM_SMS_DELIVERY_SENT              = "sent";
+const kPhoneStateChangedTopic            = "telephony-manager-phone-state-changed";
 
 const RIL_IPC_TELEPHONY_MSG_NAMES = [
   "RIL:EnumerateCalls",
@@ -2617,6 +2618,8 @@ MSimRadioInterfaceLayer.prototype = {
         }
         debug("Active call, put audio system into PHONE_STATE_IN_CALL: "
               + gAudioManager.phoneState);
+
+        Services.obs.notifyObservers(null, kPhoneStateChangedTopic, "incall");
         return;
       }
 
@@ -2627,12 +2630,19 @@ MSimRadioInterfaceLayer.prototype = {
 
     // Change phoneState to PHONE_STATE_RINGTONE or PHONE_STATE_NORMAL only
     // when there's no active call.
-    gAudioManager.phoneState = _ringing ? nsIAudioManager.PHONE_STATE_RINGTONE :
-                                          nsIAudioManager.PHONE_STATE_NORMAL;
-    debug((_ringing ? "Incoming call" : "No active call") +
-          ", put audio system into " +
-          (_ringing ? "PHONE_STATE_RINGTONE" : "PHONE_STATE_NORMAL") +
-          " : " + gAudioManager.phoneState);
+    if (_ringing) {
+      gAudioManager.phoneState = nsIAudioManager.PHONE_STATE_RINGTONE;
+      debug("Incoming call, put audio system into PHONE_STATE_RINGTONE: "
+            + gAudioManager.phoneState);
+
+      Services.obs.notifyObservers(null, kPhoneStateChangedTopic, "ringtone");
+    } else {
+      gAudioManager.phoneState = nsIAudioManager.PHONE_STATE_NORMAL;
+      debug("No active call, put audio system into PHONE_STATE_NORMAL: "
+            + gAudioManager.phoneState);
+
+      Services.obs.notifyObservers(null, kPhoneStateChangedTopic, "idle");
+    }
   },
 };
 

@@ -689,30 +689,20 @@ RILContentHelper.prototype = {
     });
   },
 
-  getMicrophoneMuted: function getMicrophoneMuted(subscriptionId) {
-    return cpmm.sendSyncMessage("RIL:GetMicrophoneMuted", {
-      subscriptionId: subscriptionId
-    })[0];
+  getMicrophoneMuted: function getMicrophoneMuted() {
+    return cpmm.sendSyncMessage("RIL:GetMicrophoneMuted")[0];
   },
 
-  setMicrophoneMuted: function getMicrophoneMuted(subscriptionId, value) {
-    cpmm.sendAsyncMessage("RIL:SetMicrophoneMuted", {
-      subscriptionId: subscriptionId,
-      data: value
-    });
+  setMicrophoneMuted: function getMicrophoneMuted(value) {
+    cpmm.sendAsyncMessage("RIL:SetMicrophoneMuted", {data: value});
   },
 
-  getSpeakerEnabled: function getSpeakerEnabled(subscriptionId) {
-    return cpmm.sendSyncMessage("RIL:GetSpeakerEnabled", {
-      subscriptionId: subscriptionId
-    })[0];
+  getSpeakerEnabled: function getSpeakerEnabled() {
+    return cpmm.sendSyncMessage("RIL:GetSpeakerEnabled")[0];
   },
 
-  setSpeakerEnabled: function setSpeakerEnabled(subscriptionId, value) {
-    cpmm.sendAsyncMessage("RIL:SetSpeakerEnabled", {
-      subscriptionId: subscriptionId,
-      data: value
-    });
+  setSpeakerEnabled: function setSpeakerEnabled(value) {
+    cpmm.sendAsyncMessage("RIL:SetSpeakerEnabled", {data: value});
   },
 
   // nsIObserver
