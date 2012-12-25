@@ -45,6 +45,10 @@ private:
   nsRefPtr<icc::IccManager> mIccManager;
   uint32_t mSubscriptionId;
 
+  bool GetDataString(const PRUnichar* aData, 
+  	                 nsString* endcodeDataMsg,
+  	                 const PRUnichar** dataString);
+  bool IsSubscriptionIdMatch(const PRUnichar* aData);
   nsIDOMEventTarget*
   ToIDOMEventTarget() const
   {
