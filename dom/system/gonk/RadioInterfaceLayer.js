@@ -964,6 +964,11 @@ RadioInterfaceLayer.prototype = {
     this.updateRILNetworkInterface(apnContexts.byAPN[apn]);
   },
 
+  handleDataSettings : function handleDataSettings(aApnSettings) {    
+    for (let apnIndex in aApnSettings) {
+      this.createApnContext(aApnSettings[apnIndex]);
+    }
+  },
   ensureDataCallSettings: function ensureDataCallSettings(apnSetting) {
     if ((apnSetting.apn == null)
         || (apnSetting.user == null)
@@ -2683,6 +2688,14 @@ function MSimRadioInterfaceLayer() {
   // we need to adjust the system clock time and time zone by NITZ.
   lock.get(kTimeNitzAutomaticUpdateEnabled, this);
 
+  //Following are new Settings, read all settings for multi-SIM.
+  for (let i = 0; i < NUM_RILS; i++) {
+    lock.get("ril." + i + ".radio.disabled", this);
+    lock.get("ril." + i + ".radio.preferredNetworkType",  this);
+    lock.get("ril." + i + ".data.roaming_enabled" ,this);
+    lock.get("ril." + i + ".data.enabled" ,this);
+  }
+  lock.get("ril.data.apnSettings", this);
 };
 MSimRadioInterfaceLayer.prototype = {
   classID:   MSIMRADIOINTERFACELAYER_CID,
@@ -2728,7 +2741,15 @@ MSimRadioInterfaceLayer.prototype = {
         //pass to the old handle() of SIM1
         this.mRILs[0].handle(aName, aResult);
       }
+      else {
+        for (let simIndex in aResult) {
+          this.mRILs[simIndex].handleDataSettings(aResult[simIndex]);
+        }
+      }
+      return;
     }
+    let settingKey = "ril."+matched[2]+"."+matched[3];
+    this.mRILs[matched[1]].handle(settingKey, aResult);
   },
 
   // nsIObserver
