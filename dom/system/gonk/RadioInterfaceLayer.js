@@ -220,46 +220,6 @@ function RadioInterfaceLayer(subscriptionId) {
   };
 
   this.callWaitingStatus = null;
-
-  // Read the 'ril.radio.disabled' setting in order to start with a known
-  // value at boot time.
-  let lock = gSettingsService.createLock();
-  lock.get("ril.radio.disabled", this);
-
-  // Read preferred network type from the setting DB.
-  lock.get("ril.radio.preferredNetworkType", this);
-
-  // Read the APN data from the settings DB.
-  lock.get("ril.data.apn", this);
-  lock.get("ril.data.user", this);
-  lock.get("ril.data.passwd", this);
-  lock.get("ril.data.httpProxyHost", this);
-  lock.get("ril.data.httpProxyPort", this);
-  lock.get("ril.data.roaming_enabled", this);
-  lock.get("ril.data.enabled", this);
-
-  // Read secondary APNs from the settings DB.
-  lock.get("ril.mms.apn", this);
-  lock.get("ril.mms.user", this);
-  lock.get("ril.mms.passwd", this);
-  lock.get("ril.mms.httpProxyHost", this);
-  lock.get("ril.mms.httpProxyPort", this);
-  lock.get("ril.mms.mmsc", this);
-  lock.get("ril.mms.mmsproxy", this);
-  lock.get("ril.mms.mmsport", this);
-  lock.get("ril.supl.apn", this);
-  lock.get("ril.supl.user", this);
-  lock.get("ril.supl.passwd", this);
-  lock.get("ril.supl.httpProxyHost", this);
-  lock.get("ril.supl.httpProxyPort", this);
-
-  // Read the desired setting of call waiting from the settings DB.
-  lock.get("ril.callwaiting.enabled", this);
-
-  // Read the 'time.nitz.automatic-update.enabled' setting to see if
-  // we need to adjust the system clock time and time zone by NITZ.
-  lock.get(kTimeNitzAutomaticUpdateEnabled, this);
-
   this._messageManagerByRequest = {};
 
   // Manage message targets in terms of permission. Only the authorized and
@@ -267,7 +227,6 @@ function RadioInterfaceLayer(subscriptionId) {
   this._messageManagerByPermission = {};
 
   Services.obs.addObserver(this, "xpcom-shutdown", false);
-  Services.obs.addObserver(this, kMozSettingsChangedObserverTopic, false);
   Services.obs.addObserver(this, kSysMsgListenerReadyObserverTopic, false);
   Services.obs.addObserver(this, kSysClockChangeObserverTopic, false);
 
@@ -1528,10 +1487,6 @@ RadioInterfaceLayer.prototype = {
         this._sysMsgListenerReady = true;
         this._ensureRadioState();
         break;
-      case kMozSettingsChangedObserverTopic:
-        let setting = JSON.parse(data);
-        this.handle(setting.key, setting.value);
-        break;
       case "xpcom-shutdown":
         // Shutdown all RIL network interfaces
         let apnContexts =this.dataCallSettings.apnContexts;
@@ -1542,7 +1497,6 @@ RadioInterfaceLayer.prototype = {
         }
         ppmm = null;
         Services.obs.removeObserver(this, "xpcom-shutdown");
-        Services.obs.removeObserver(this, kMozSettingsChangedObserverTopic);
         Services.obs.removeObserver(this, kSysClockChangeObserverTopic);
         break;
       case kSysClockChangeObserverTopic:
@@ -2683,6 +2637,8 @@ function MSimRadioInterfaceLayer() {
     this.mRILs.push(new RadioInterfaceLayer(i));
   }
 
+  Services.obs.addObserver(this, kMozSettingsChangedObserverTopic, false);
+
   ppmm.addMessageListener("child-process-shutdown", this);
   for (let msgname of RIL_IPC_TELEPHONY_MSG_NAMES) {
     ppmm.addMessageListener(msgname, this);
@@ -2693,6 +2649,39 @@ function MSimRadioInterfaceLayer() {
   for (let msgname of RIL_IPC_VOICEMAIL_MSG_NAMES) {
     ppmm.addMessageListener(msgname, this);
   }
+  // Read the 'ril.radio.disabled' setting in order to start with a known
+  // value at boot time.
+  let lock = gSettingsService.createLock();
+  // Following are old Settings
+
+  lock.get("ril.radio.disabled", this);
+
+  // Read preferred network type from the setting DB.
+  lock.get("ril.radio.preferredNetworkType", this);
+
+  // Read the APN data from the settings DB.
+  lock.get("ril.data.apn", this);
+  lock.get("ril.data.user", this);
+  lock.get("ril.data.passwd", this);
+  lock.get("ril.data.httpProxyHost", this);
+  lock.get("ril.data.httpProxyPort", this);
+  lock.get("ril.data.roaming_enabled", this);
+  lock.get("ril.data.enabled", this);
+
+  // Read secondary APNs from the settings DB.
+  lock.get("ril.mms.apn", this);
+  lock.get("ril.mms.user", this);
+  lock.get("ril.mms.passwd", this);
+  lock.get("ril.mms.httpProxyHost", this);
+  lock.get("ril.mms.httpProxyPort", this);
+  lock.get("ril.supl.apn", this);
+  lock.get("ril.supl.user", this);
+  lock.get("ril.supl.passwd", this);
+  lock.get("ril.supl.httpProxyHost", this);
+  lock.get("ril.supl.httpProxyPort", this);
+  // Read the 'time.nitz.automatic-update.enabled' setting to see if
+  // we need to adjust the system clock time and time zone by NITZ.
+  lock.get(kTimeNitzAutomaticUpdateEnabled, this);
 
 };
 MSimRadioInterfaceLayer.prototype = {
@@ -2703,7 +2692,9 @@ MSimRadioInterfaceLayer.prototype = {
      interfaces: [Ci.nsIMSimWorkerHolder, Ci.nsIMSimRadioInterfaceLayer]}),
 
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIMSimWorkerHolder,
-                                         Ci.nsIMSimRadioInterfaceLayer]),
+                                         Ci.nsIMSimRadioInterfaceLayer,
+                                         Ci.nsIObserver,
+                                         Ci.nsISettingsServiceCallback]),
 
   onerror: function onerror(event) {
     debug("Got an error: " + event.filename + ":" +
@@ -2726,6 +2717,28 @@ MSimRadioInterfaceLayer.prototype = {
   getWorker: function getWorker(i) {
     debug("getWorker "+i);
     return this.mRILs[i].worker;
+  },
+
+  mRILSettingsRE: new RegExp("^ril\\.(0|[1-9]\\d*)\\.([^\\.]+)\\.([\\w.]+)"),
+  // nsISettingsServiceCallback
+  handle: function handle(aName, aResult) {
+    let matched;
+    if ((matched = aName.match(this.mRILSettingsRE)) == null) {
+      if (aName != "ril.data.apnSettings") {
+        //pass to the old handle() of SIM1
+        this.mRILs[0].handle(aName, aResult);
+      }
+    }
+  },
+
+  // nsIObserver
+  observe: function observe(subject, topic, data) {
+    switch (topic) {
+      case kMozSettingsChangedObserverTopic:
+        let setting = JSON.parse(data);
+        this.handle(setting.key, setting.value);
+        break;
+    }
   },
 
 };
