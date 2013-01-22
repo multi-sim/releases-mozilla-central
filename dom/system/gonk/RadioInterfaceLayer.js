@@ -594,7 +594,8 @@ RadioInterfaceLayer.prototype = {
       return;
     }
 
-    target.sendAsyncMessage(requestType, {data: options});
+    target.sendAsyncMessage(requestType, {data: options,
+                                          subscriptionId: this.subscriptionId});
   },
 
   _messageManagerByPermission: null,
@@ -649,9 +650,9 @@ RadioInterfaceLayer.prototype = {
       return;
     }
 
-    options.subscriptionId = this.subscriptionId;
     for each (let target in targets) {
-      target.sendAsyncMessage(message, {data: options});
+      target.sendAsyncMessage(message, {data: options,
+                                        subscriptionId: this.subscriptionId});
     }
   },
 

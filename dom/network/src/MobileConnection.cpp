@@ -76,7 +76,7 @@ NS_IMPL_EVENT_HANDLER(MobileConnection, ussdreceived)
 NS_IMPL_EVENT_HANDLER(MobileConnection, dataerror)
 NS_IMPL_EVENT_HANDLER(MobileConnection, icccardlockerror)
 
-MobileConnection::MobileConnection()
+MobileConnection::MobileConnection(uint32_t subscriptionId)
 {
   mProvider = do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
 
@@ -85,7 +85,7 @@ MobileConnection::MobileConnection()
   if (!mProvider) {
     NS_WARNING("Could not acquire nsIMobileConnectionProvider!");
   } else {
-    mSubscriptionId = 0;
+    mSubscriptionId = subscriptionId;
     mProvider->RegisterMobileConnectionMsg(mSubscriptionId);
   }
 }
