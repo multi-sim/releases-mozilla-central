@@ -773,9 +773,11 @@ RILContentHelper.prototype = {
     debug("Received message '" + msg.name + "': " + JSON.stringify(msg.json));
     switch (msg.name) {
       case "RIL:CardStateChanged":
-        if (this.cardState[msg.jsubscriptionId] != msg.json.data.cardState) {
+        if (this.cardState[msg.json.subscriptionId] != msg.json.data.cardState) {
+          let cardResult = JSON.stringify({subscriptionId: msg.json.subscriptionId});
           this.cardState[msg.json.subscriptionId] = msg.json.data.cardState;
-          Services.obs.notifyObservers(null, kCardStateChangedTopic, null);
+          Services.obs.notifyObservers(null, kCardStateChangedTopic, 
+                                      cardResult);
         }
         break;
       case "RIL:IccInfoChanged":
@@ -785,12 +787,14 @@ RILContentHelper.prototype = {
       case "RIL:VoiceInfoChanged":
         this.updateConnectionInfo(msg.json.data, 
                                   this.voiceConnectionInfo[msg.json.subscriptionId]);
-        Services.obs.notifyObservers(null, kVoiceChangedTopic, null);
+        let voiceResult = JSON.stringify({subscriptionId: msg.json.subscriptionId});
+        Services.obs.notifyObservers(null, kVoiceChangedTopic, voiceResult);
         break;
       case "RIL:DataInfoChanged":
         this.updateConnectionInfo(msg.json.data, 
                                   this.dataConnectionInfo[msg.json.subscriptionId]);
-        Services.obs.notifyObservers(null, kDataChangedTopic, null);
+        let dataResult = JSON.stringify({subscriptionId: msg.json.subscriptionId});
+        Services.obs.notifyObservers(null, kDataChangedTopic, dataResult);
         break;
       case "RIL:EnumerateCalls":
         this.handleEnumerateCalls(msg.json.subscriptionId || 0,
@@ -841,8 +845,9 @@ RILContentHelper.prototype = {
         } else {
           if (msg.json.data.rilMessageType == "iccSetCardLock" ||
               msg.json.data.rilMessageType == "iccUnlockCardLock") {
-            let result = JSON.stringify({lockType: msg.json.data.lockType,
-                                         retryCount: msg.json.data.retryCount});
+            let result = JSON.stringify({subscriptionId: msg.json.subscriptionId,
+                                         data: {lockType: msg.json.data.lockType,
+                                         retryCount: msg.json.data.retryCount}});
             Services.obs.notifyObservers(null, kIccCardLockErrorTopic,
                                          result);
           }
@@ -850,8 +855,9 @@ RILContentHelper.prototype = {
         }
         break;
       case "RIL:USSDReceived":
-        let res = JSON.stringify({message: msg.json.data.message,
-                                  sessionEnded: msg.json.data.sessionEnded});
+        let res = JSON.stringify({subscriptionId: msg.json.subscriptionId,
+                                  data: {message: msg.json.data.message,
+                                  sessionEnded: msg.json.data.sessionEnded}});
         Services.obs.notifyObservers(null, kUssdReceivedTopic, res);
         break;
       case "RIL:SendMMI:Return:OK":
@@ -876,8 +882,11 @@ RILContentHelper.prototype = {
         Services.obs.notifyObservers(null, kStkSessionEndTopic, null);
         break;
       case "RIL:DataError":
-        this.updateConnectionInfo(msg.json.data, this.dataConnectionInfo);
-        Services.obs.notifyObservers(null, kDataErrorTopic, msg.json.data.error);
+        let result = JSON.stringify({subscriptionId: msg.json.subscriptionId,
+                                     data: {dataError: msg.json.data.error}});
+        this.updateConnectionInfo(msg.json.data, 
+                                 this.dataConnectionInfo[msg.json.subscriptionId]);
+        Services.obs.notifyObservers(null, kDataErrorTopic, result);
         break;
     }
   },

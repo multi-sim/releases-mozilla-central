@@ -25,6 +25,7 @@ XPIDLSRCS = \
 
 ifdef MOZ_B2G_RIL
 XPIDLSRCS += \
+  nsIDOMMobileConnectionManager.idl \
   nsIDOMMobileConnection.idl \
   nsIMobileConnectionProvider.idl \
   nsINavigatorMobileConnection.idl \

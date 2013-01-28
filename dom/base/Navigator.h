@@ -67,7 +67,7 @@ class SmsManager;
 namespace network {
 class Connection;
 #ifdef MOZ_B2G_RIL
-class MobileConnection;
+class MobileConnectionManager;
 #endif
 } // namespace Connection;
 
@@ -95,7 +95,7 @@ class Navigator : public nsIDOMNavigator
 #endif
                 , public nsIDOMMozNavigatorNetwork
 #ifdef MOZ_B2G_RIL
-                , public nsIMozNavigatorMobileConnection
+                , public nsIMozNavigatorMobileConnectionManager
 #endif
 #ifdef MOZ_B2G_BT
                 , public nsIDOMNavigatorBluetooth
@@ -125,7 +125,7 @@ public:
 #endif
   NS_DECL_NSIDOMMOZNAVIGATORNETWORK
 #ifdef MOZ_B2G_RIL
-  NS_DECL_NSIMOZNAVIGATORMOBILECONNECTION
+  NS_DECL_NSIMOZNAVIGATORMOBILECONNECTIONMANAGER
 #endif
 
 #ifdef MOZ_B2G_BT
@@ -177,7 +177,7 @@ private:
 #endif
   nsRefPtr<network::Connection> mConnection;
 #ifdef MOZ_B2G_RIL
-  nsRefPtr<network::MobileConnection> mMobileConnection;
+  nsRefPtr<network::MobileConnectionManager> mMobileConnectionManager;
 #endif
 #ifdef MOZ_B2G_BT
   nsCOMPtr<nsIDOMBluetoothManager> mBluetooth;

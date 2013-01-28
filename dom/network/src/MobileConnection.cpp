@@ -13,6 +13,7 @@
 #include "IccManager.h"
 #include "GeneratedEvents.h"
 #include "nsIDOMICCCardLockErrorEvent.h"
+#include "nsXPCOMStrings.h"
 
 #include "nsContentUtils.h"
 #include "nsJSUtils.h"
@@ -75,7 +76,7 @@ NS_IMPL_EVENT_HANDLER(MobileConnection, ussdreceived)
 NS_IMPL_EVENT_HANDLER(MobileConnection, dataerror)
 NS_IMPL_EVENT_HANDLER(MobileConnection, icccardlockerror)
 
-MobileConnection::MobileConnection()
+MobileConnection::MobileConnection(uint32_t subscriptionId)
 {
   mProvider = do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
 
@@ -84,7 +85,7 @@ MobileConnection::MobileConnection()
   if (!mProvider) {
     NS_WARNING("Could not acquire nsIMobileConnectionProvider!");
   } else {
-    mSubscriptionId = 0;
+    mSubscriptionId = subscriptionId;
     mProvider->RegisterMobileConnectionMsg(mSubscriptionId);
   }
 }
@@ -135,6 +136,63 @@ MobileConnection::Shutdown()
   }
 }
 
+bool
+MobileConnection::GetDataString(const PRUnichar* aData,
+                                nsString* endcodeDataMsg,
+                                const PRUnichar** dataString)
+{
+  nsString decodeDataMsg;
+  nsresult rv;
+  nsIScriptContext* sc = GetContextForEventHandlers(&rv);
+  jsval message;
+  jsval dataProperty;
+
+  decodeDataMsg.Assign(aData);
+  if (decodeDataMsg.IsEmpty()) {
+      return false;
+  }
+  JSContext* cx = sc->GetNativeContext();
+  nsCOMPtr<nsIJSON> json(new nsJSON());
+  rv = json->DecodeToJSVal(decodeDataMsg, cx, &message);
+  if (JS_GetProperty(cx, JSVAL_TO_OBJECT(message), "data", &dataProperty)) {
+    if (!(JSVAL_IS_NULL(dataProperty))) {
+      json->EncodeFromJSVal(&dataProperty, cx, *endcodeDataMsg);
+      if (NS_StringGetData(*endcodeDataMsg, dataString)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool
+MobileConnection::IsSubscriptionIdMatch(const PRUnichar* aData)
+{
+  nsString dataMsg;
+  nsresult rv;
+  nsIScriptContext* sc = GetContextForEventHandlers(&rv);
+  jsval message;
+  jsval jsSubscriptionId;
+  uint32_t cplisSubscriptionId = 0;
+
+  dataMsg.Assign(aData);
+  if (dataMsg.IsEmpty()) {
+      return false;
+  }
+  JSContext* cx = sc->GetNativeContext();
+  nsCOMPtr<nsIJSON> json(new nsJSON());
+  rv = json->DecodeToJSVal(dataMsg, cx, &message);
+  if (JS_GetProperty(cx, JSVAL_TO_OBJECT(message), "subscriptionId", 
+                     &jsSubscriptionId)) {
+    if (JSVAL_IS_NUMBER(jsSubscriptionId)) {
+      cplisSubscriptionId = jsSubscriptionId.toNumber();
+      if (cplisSubscriptionId == mSubscriptionId) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 // nsIObserver
 
 NS_IMETHODIMP
@@ -142,6 +200,10 @@ MobileConnection::Observe(nsISupports* aSubject,
                           const char* aTopic,
                           const PRUnichar* aData)
 {
+  if (!IsSubscriptionIdMatch(aData)) {
+    return NS_OK;
+  }
+
   if (!strcmp(aTopic, kVoiceChangedTopic)) {
     DispatchTrustedEvent(VOICECHANGE_EVENTNAME);
     return NS_OK;
@@ -163,8 +225,16 @@ MobileConnection::Observe(nsISupports* aSubject,
   }
 
   if (!strcmp(aTopic, kUssdReceivedTopic)) {
+    const PRUnichar* dataString;
+    nsString endcodeDataMsg;
+
+
+    if (!GetDataString(aData, &endcodeDataMsg, &dataString)) {
+       return NS_OK;
+    }
+
     mozilla::dom::USSDReceivedEventDict dict;
-    bool ok = dict.Init(nsDependentString(aData));
+    bool ok = dict.Init(nsDependentString(dataString));
     NS_ENSURE_TRUE(ok, NS_ERROR_FAILURE);
 
     nsRefPtr<USSDReceivedEvent> event =
@@ -178,7 +248,12 @@ MobileConnection::Observe(nsISupports* aSubject,
 
   if (!strcmp(aTopic, kDataErrorTopic)) {
     nsString dataerror;
-    dataerror.Assign(aData);
+    const PRUnichar* dataString;
+
+    if (!GetDataString(aData, &dataerror, &dataString)) {
+       return NS_OK;
+    }
+
     nsRefPtr<DataErrorEvent> event = DataErrorEvent::Create(dataerror);
     NS_ASSERTION(event, "This should never fail!");
 
@@ -190,8 +265,11 @@ MobileConnection::Observe(nsISupports* aSubject,
 
   if (!strcmp(aTopic, kIccCardLockErrorTopic)) {
     nsString errorMsg;
-    errorMsg.Assign(aData);
+    const PRUnichar* dataString;
 
+    if (!GetDataString(aData, &errorMsg, &dataString)) {
+       return NS_OK;
+    }
     if (errorMsg.IsEmpty()) {
       NS_ERROR("Got a 'icc-cardlock-error' topic without a valid message!");
       return NS_OK;
