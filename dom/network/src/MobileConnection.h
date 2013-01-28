@@ -32,7 +32,7 @@ public:
 
   NS_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetHelper::)
 
-  MobileConnection();
+  MobileConnection(uint32_t subscriptionId);
 
   void Init(nsPIDOMWindow *aWindow);
   void Shutdown();
@@ -45,6 +45,10 @@ private:
   nsRefPtr<icc::IccManager> mIccManager;
   uint32_t mSubscriptionId;
 
+  bool GetDataString(const PRUnichar* aData, 
+  	                 nsString* endcodeDataMsg,
+  	                 const PRUnichar** dataString);
+  bool IsSubscriptionIdMatch(const PRUnichar* aData);
   nsIDOMEventTarget*
   ToIDOMEventTarget() const
   {

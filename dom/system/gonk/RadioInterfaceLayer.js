@@ -175,14 +175,22 @@ XPCOMUtils.defineLazyGetter(this, "gAudioManager", function getAudioManager() {
 
 function RadioInterfaceLayer(subscriptionId) {
   this.subscriptionId = subscriptionId;
-  this.dataNetworkInterface = new RILNetworkInterface(this, Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE);
-  this.mmsNetworkInterface = new RILNetworkInterface(this, Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE_MMS);
-  this.suplNetworkInterface = new RILNetworkInterface(this, Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE_SUPL);
 
   debug("Starting RIL Worker");
   this.worker = new ChromeWorker("resource://gre/modules/ril_worker.js");
   this.worker.onerror = this.onerror.bind(this);
   this.worker.onmessage = this.onmessage.bind(this);
+
+  this.dataCallSettings = {
+    _oldEnabled: null,
+    enabled: null,
+    roaming_enabled: null,
+    cache: {},
+    apnContexts: {
+      byType: {},
+      byAPN: {}
+    }
+  };
 
   this.rilContext = {
     radioState:     RIL.GECKO_RADIOSTATE_UNAVAILABLE,
@@ -212,53 +220,6 @@ function RadioInterfaceLayer(subscriptionId) {
   };
 
   this.callWaitingStatus = null;
-
-  // Read the 'ril.radio.disabled' setting in order to start with a known
-  // value at boot time.
-  let lock = gSettingsService.createLock();
-  lock.get("ril.radio.disabled", this);
-
-  // Read preferred network type from the setting DB.
-  lock.get("ril.radio.preferredNetworkType", this);
-
-  // Read the APN data from the settings DB.
-  lock.get("ril.data.apn", this);
-  lock.get("ril.data.user", this);
-  lock.get("ril.data.passwd", this);
-  lock.get("ril.data.httpProxyHost", this);
-  lock.get("ril.data.httpProxyPort", this);
-  lock.get("ril.data.roaming_enabled", this);
-  lock.get("ril.data.enabled", this);
-  this._dataCallSettingsToRead = ["ril.data.enabled",
-                                  "ril.data.roaming_enabled",
-                                  "ril.data.apn",
-                                  "ril.data.user",
-                                  "ril.data.passwd",
-                                  "ril.data.httpProxyHost",
-                                  "ril.data.httpProxyPort"];
-
-  // Read secondary APNs from the settings DB.
-  lock.get("ril.mms.apn", this);
-  lock.get("ril.mms.user", this);
-  lock.get("ril.mms.passwd", this);
-  lock.get("ril.mms.httpProxyHost", this);
-  lock.get("ril.mms.httpProxyPort", this);
-  lock.get("ril.mms.mmsc", this);
-  lock.get("ril.mms.mmsproxy", this);
-  lock.get("ril.mms.mmsport", this);
-  lock.get("ril.supl.apn", this);
-  lock.get("ril.supl.user", this);
-  lock.get("ril.supl.passwd", this);
-  lock.get("ril.supl.httpProxyHost", this);
-  lock.get("ril.supl.httpProxyPort", this);
-
-  // Read the desired setting of call waiting from the settings DB.
-  lock.get("ril.callwaiting.enabled", this);
-
-  // Read the 'time.nitz.automatic-update.enabled' setting to see if
-  // we need to adjust the system clock time and time zone by NITZ.
-  lock.get(kTimeNitzAutomaticUpdateEnabled, this);
-
   this._messageManagerByRequest = {};
 
   // Manage message targets in terms of permission. Only the authorized and
@@ -266,7 +227,6 @@ function RadioInterfaceLayer(subscriptionId) {
   this._messageManagerByPermission = {};
 
   Services.obs.addObserver(this, "xpcom-shutdown", false);
-  Services.obs.addObserver(this, kMozSettingsChangedObserverTopic, false);
   Services.obs.addObserver(this, kSysMsgListenerReadyObserverTopic, false);
   Services.obs.addObserver(this, kSysClockChangeObserverTopic, false);
 
@@ -594,7 +554,8 @@ RadioInterfaceLayer.prototype = {
       return;
     }
 
-    target.sendAsyncMessage(requestType, {data: options});
+    target.sendAsyncMessage(requestType, {data: options,
+                                          subscriptionId: this.subscriptionId});
   },
 
   _messageManagerByPermission: null,
@@ -649,9 +610,9 @@ RadioInterfaceLayer.prototype = {
       return;
     }
 
-    options.subscriptionId = this.subscriptionId;
     for each (let target in targets) {
-      target.sendAsyncMessage(message, {data: options});
+      target.sendAsyncMessage(message, {data: options,
+                                        subscriptionId: this.subscriptionId});
     }
   },
 
@@ -783,13 +744,21 @@ RadioInterfaceLayer.prototype = {
 
   updateDataConnection: function updateDataConnection(newInfo) {
     let dataInfo = this.rilContext.data;
+    let apnContexts = this.dataCallSettings.apnContexts;
+    let apnSetting = apnContexts.byType["data"];
     dataInfo.state = newInfo.state;
     dataInfo.roaming = newInfo.roaming;
     dataInfo.emergencyCallsOnly = newInfo.emergencyCallsOnly;
     dataInfo.type = newInfo.type;
+    if (!apnSetting) {
+      apnSetting = apnContexts.byType["default"];
+    }
     // For the data connection, the `connected` flag indicates whether
     // there's an active data call.
-    dataInfo.connected = this.dataNetworkInterface.connected;
+    if (apnSetting && apnSetting.iface &&
+         this.dataCallSettings.enabled) {
+      dataInfo.connected = apnSetting.iface.connected;
+    }
 
     // Make sure we also reset the operator and signal strength information
     // if we drop off the network.
@@ -809,15 +778,21 @@ RadioInterfaceLayer.prototype = {
     if (!newInfo.batch) {
       this._sendTargetMessage("mobileconnection", "RIL:DataInfoChanged", dataInfo);
     }
-    this.updateRILNetworkInterface();
+    if (apnSetting) {
+       this.updateRILNetworkInterface(apnSetting);
+    }
   },
 
   /**
    * Handle data errors
    */
   handleDataCallError: function handleDataCallError(message) {
+    let apnSetting = this.dataCallSettings.apnContexts.byType["data"];
+    if (!apnSetting) {
+      apnSetting = this.dataCallSettings.apnContexts.byType["default"];
+    }
     // Notify data call error only for data APN
-    if (message.apn == this.dataCallSettings["apn"]) {
+    if (message.apn == apnSetting.apn) {
       this._sendTargetMessage("mobileconnection", "RIL:DataError", message);
     }
 
@@ -945,6 +920,69 @@ RadioInterfaceLayer.prototype = {
     }
   },
 
+  createApnContext: function createApnContext(apnSetting) {
+    let apn = apnSetting["apn"];
+    let apnContexts = this.dataCallSettings.apnContexts;
+    if (!apnContexts.byAPN[apn]) {
+      apnContexts.byAPN[apn] = new Object();
+    }
+
+    //Copy apn Settings.
+    for (let apnItem in apnSetting) {
+      if (apnItem == "types") {
+        apnContexts.byAPN[apn][apnItem] = apnSetting[apnItem].split(",");
+      }
+      else {
+        apnContexts.byAPN[apn][apnItem] = apnSetting[apnItem];
+      }
+    }
+
+    let allTypes = apnContexts.byAPN[apn].types;
+    //Check if the apn of this types is exist
+    for each (let type in allTypes) {
+      //this types is used stored, remove it and update the new one.
+      if (apnContexts.byType[type] && 
+           (apnContexts.byType[type] != apnContexts.byAPN[apn])) {
+        //remove the apn-type link
+        let index = apnContexts.byType[type].types.indexOf(type);
+        if (index >= -1) {
+          apnContexts.byType[type].types.splice(index, 1);
+        }
+        //if this is the latest apn-type link. Remove this APN.
+        if (!apnContexts.byType[type].types.length) {
+          if (apnContexts.byType[type].iface) { 
+            if (apnContexts.byType[type].iface.connected) {
+              apnContexts.byType[type].iface.disconnect();
+            }
+            delete apnContexts.byType[type].iface;
+          }
+          delete apnContexts.byType[type];
+        }
+      }
+      apnContexts.byType[type] = apnContexts.byAPN[apn];
+    }
+    this.updateRILNetworkInterface(apnContexts.byAPN[apn]);
+  },
+
+  handleDataSettings : function handleDataSettings(aApnSettings) {    
+    for (let apnIndex in aApnSettings) {
+      this.createApnContext(aApnSettings[apnIndex]);
+    }
+  },
+  ensureDataCallSettings: function ensureDataCallSettings(apnSetting) {
+    if ((apnSetting.apn == null)
+        || (apnSetting.user == null)
+        || (apnSetting.passwd == null)
+        || (apnSetting.types == null)) {
+      return false;
+    }
+
+    if (!apnSetting.iface) {
+      apnSetting.iface = new RILNetworkInterface(this, apnSetting);
+    }
+    return true;
+  },
+
   handleCallWaitingStatusChange: function handleCallWaitingStatusChange(message) {
     let newStatus = message.enabled;
 
@@ -979,8 +1017,8 @@ RadioInterfaceLayer.prototype = {
     }
   },
 
-  updateRILNetworkInterface: function updateRILNetworkInterface() {
-    if (this._dataCallSettingsToRead.length) {
+  updateRILNetworkInterface: function updateRILNetworkInterface(apnSetting) {
+    if (!this.ensureDataCallSettings(apnSetting)) {
       debug("We haven't read completely the APN data from the " +
             "settings DB yet. Wait for that.");
       return;
@@ -998,26 +1036,18 @@ RadioInterfaceLayer.prototype = {
     // true and any of the remaining flags change the setting application
     // should turn this flag to false and then to true in order to reload
     // the new values and reconnect the data call.
-    if (this._oldRilDataEnabledState == this.dataCallSettings["enabled"]) {
+    if (this.dataCallSettings._oldEnabled == this.dataCallSettings.enabled) {
       debug("No changes for ril.data.enabled flag. Nothing to do.");
       return;
     }
 
-    if (this.dataNetworkInterface.state == RIL.GECKO_NETWORK_STATE_CONNECTING ||
-        this.dataNetworkInterface.state == RIL.GECKO_NETWORK_STATE_DISCONNECTING) {
+    if (apnSetting.iface.state == RIL.GECKO_NETWORK_STATE_CONNECTING ||
+         apnSetting.iface.state == RIL.GECKO_NETWORK_STATE_DISCONNECTING ||
+         apnSetting.iface.connecting) {
       debug("Nothing to do during connecting/disconnecting in progress.");
       return;
     }
 
-    if (!this.dataCallSettings["enabled"] && this.dataNetworkInterface.connected) {
-      debug("Data call settings: disconnect data call.");
-      this.dataNetworkInterface.disconnect();
-      return;
-    }
-    if (!this.dataCallSettings["enabled"] || this.dataNetworkInterface.connected) {
-      debug("Data call settings: nothing to do.");
-      return;
-    }
     let dataInfo = this.rilContext.data;
     let isRegistered =
       dataInfo.state == RIL.GECKO_MOBILE_CONNECTION_STATE_REGISTERED;
@@ -1026,6 +1056,18 @@ RadioInterfaceLayer.prototype = {
     if (!isRegistered || !haveDataConnection) {
       debug("RIL is not ready for data connection: Phone's not registered " +
             "or doesn't have data connection.");
+      return;
+    }
+
+    if (apnSetting.iface.connected &&
+        (!this.dataCallSettings["enabled"] ||
+         (dataInfo.roaming && !this.dataCallSettings["roaming_enabled"]))) {
+      debug("Data call settings: disconnect data call.");
+      apnSetting.iface.disconnect();
+      return;
+    }
+    if (!this.dataCallSettings["enabled"] || apnSetting.iface.connected) {
+      debug("Data call settings: nothing to do.");
       return;
     }
     if (dataInfo.roaming && !this.dataCallSettings["roaming_enabled"]) {
@@ -1038,7 +1080,7 @@ RadioInterfaceLayer.prototype = {
     }
 
     debug("Data call settings: connect data call.");
-    this.dataNetworkInterface.connect(this.dataCallSettings);
+    apnSetting.iface.connect();
   },
 
   /**
@@ -1329,9 +1371,16 @@ RadioInterfaceLayer.prototype = {
    */
   handleDataCallState: function handleDataCallState(datacall) {
     let data = this.rilContext.data;
+    let dataApn;
+    if (this.dataCallSettings.apnContexts.byType["data"]) {
+      dataApn = this.dataCallSettings.apnContexts.byType["data"].apn;
+    }
+    else {
+      dataApn = this.dataCallSettings.apnContexts.byType["default"].apn;
+    }
 
-    if (datacall.ifname &&
-        datacall.apn == this.dataCallSettings["apn"]) {
+    if (datacall.ifname && (datacall.apn == dataApn) && 
+         this.dataCallSettings.enabled) {
       data.connected = (datacall.state == RIL.GECKO_NETWORK_STATE_CONNECTED);
       this._sendTargetMessage("mobileconnection", "RIL:DataInfoChanged", data);
     }
@@ -1443,18 +1492,16 @@ RadioInterfaceLayer.prototype = {
         this._sysMsgListenerReady = true;
         this._ensureRadioState();
         break;
-      case kMozSettingsChangedObserverTopic:
-        let setting = JSON.parse(data);
-        this.handle(setting.key, setting.value);
-        break;
       case "xpcom-shutdown":
         // Shutdown all RIL network interfaces
-        this.dataNetworkInterface.shutdown();
-        this.mmsNetworkInterface.shutdown();
-        this.suplNetworkInterface.shutdown();
+        let apnContexts =this.dataCallSettings.apnContexts;
+        for each (let apn in apnContexts.byAPN) {
+          if (apnContexts.byAPN[apn].iface) {
+            apnSetting.iface.shutdown();
+          }
+        }
         ppmm = null;
         Services.obs.removeObserver(this, "xpcom-shutdown");
-        Services.obs.removeObserver(this, kMozSettingsChangedObserverTopic);
         Services.obs.removeObserver(this, kSysClockChangeObserverTopic);
         break;
       case kSysClockChangeObserverTopic:
@@ -1483,9 +1530,7 @@ RadioInterfaceLayer.prototype = {
   _callWaitingEnabled: null,
 
   // APN data for making data calls.
-  dataCallSettings: {},
-  dataCallSettingsMMS: {},
-  dataCallSettingsSUPL: {},
+  dataCallSettings: null,
   _dataCallSettingsToRead: [],
   _oldRilDataEnabledState: null,
 
@@ -1499,6 +1544,7 @@ RadioInterfaceLayer.prototype = {
 
   // nsISettingsServiceCallback
   handle: function handle(aName, aResult) {
+    let apnSettingCache = this.dataCallSettings.cache
     switch(aName) {
       case "ril.radio.disabled":
         debug("'ril.radio.disabled' is now " + aResult);
@@ -1510,41 +1556,91 @@ RadioInterfaceLayer.prototype = {
         this.setPreferredNetworkType(aResult);
         break;
       case "ril.data.enabled":
-        this._oldRilDataEnabledState = this.dataCallSettings["enabled"];
+        this.dataCallSettings._oldEnabled = this.dataCallSettings.enabled;
+        this.dataCallSettings.enabled = aResult;
         // Fall through!
       case "ril.data.roaming_enabled":
+        debug("'ril.data.roaming_enabled' is now " + aResult);
+        this.dataCallSettings.roaming_enabled = aResult;
+        let apnSetting = this.dataCallSettings.apnContexts.byType["data"];
+        if (!apnSetting) {
+          apnSetting = this.dataCallSettings.apnContexts.byType["default"];
+        }
+        if (apnSetting) {
+          this.updateRILNetworkInterface(apnSetting);
+        }
+        break;
       case "ril.data.apn":
       case "ril.data.user":
       case "ril.data.passwd":
       case "ril.data.httpProxyHost":
       case "ril.data.httpProxyPort":
+        if (!this._dataCallSettingsToRead.length) {
+             this._dataCallSettingsToRead = ["ril.data.apn",
+                                             "ril.data.user",
+                                             "ril.data.passwd",
+                                             "ril.data.httpProxyHost",
+                                             "ril.data.httpProxyPort"];
+        }
         let key = aName.slice(9);
-        this.dataCallSettings[key] = aResult;
-        debug("'" + aName + "'" + " is now " + this.dataCallSettings[key]);
+        apnSettingCache[key] = aResult;
+        debug("'" + aName + "'" + " is now " + apnSettingCache[key]);
         let index = this._dataCallSettingsToRead.indexOf(aName);
         if (index != -1) {
           this._dataCallSettingsToRead.splice(index, 1);
         }
-        this.updateRILNetworkInterface();
+        if (!this._dataCallSettingsToRead.length) {
+          apnSettingCache.types = "data,default";
+          this.createApnContext(apnSettingCache);
+        }
         break;
       case "ril.mms.apn":
       case "ril.mms.user":
       case "ril.mms.passwd":
       case "ril.mms.httpProxyHost":
       case "ril.mms.httpProxyPort":
-      case "ril.mms.mmsc":
-      case "ril.mms.mmsproxy":
-      case "ril.mms.mmsport":
+        if (!this._dataCallSettingsToRead.length) {
+          this._dataCallSettingsToRead = ["ril.mms.apn",
+                                             "ril.mms.user",
+                                             "ril.mms.passwd",
+                                             "ril.mms.httpProxyHost",
+                                             "ril.mms.httpProxyPort"];
+        }
         key = aName.slice(8);
-        this.dataCallSettingsMMS[key] = aResult;
+        apnSettingCache[key] = aResult;
+        debug("'" + aName + "'" + " is now " + apnSettingCache[key]);
+        index = this._dataCallSettingsToRead.indexOf(aName);
+        if (index != -1) {
+          this._dataCallSettingsToRead.splice(index, 1);
+        }
+        if (!this._dataCallSettingsToRead.length) {
+          apnSettingCache.types = "mms";
+          this.createApnContext(apnSettingCache);
+        }
         break;
       case "ril.supl.apn":
       case "ril.supl.user":
       case "ril.supl.passwd":
       case "ril.supl.httpProxyHost":
       case "ril.supl.httpProxyPort":
+        if (!this._dataCallSettingsToRead.length) {
+             this._dataCallSettingsToRead = ["ril.supl.apn",
+                                             "ril.supl.user",
+                                             "ril.supl.passwd",
+                                             "ril.supl.httpProxyHost",
+                                             "ril.supl.httpProxyPort"];
+        }
         key = aName.slice(9);
-        this.dataCallSettingsSUPL[key] = aResult;
+        apnSettingCache[key] = aResult;
+        debug("'" + aName + "'" + " is now " + apnSettingCache[key]);
+        index = this._dataCallSettingsToRead.indexOf(aName);
+        if (index != -1) {
+          this._dataCallSettingsToRead.splice(index, 1);
+        }
+        if (!this._dataCallSettingsToRead.length) {
+          apnSettingCache.types = "supl";
+          this.createApnContext(apnSettingCache);
+        }
         break;
       case "ril.callwaiting.enabled":
         this._callWaitingEnabled = aResult;
@@ -1567,10 +1663,24 @@ RadioInterfaceLayer.prototype = {
     // Default radio to on.
     this._radioEnabled = true;
     this._ensureRadioState();
+    let apnContexts =this.dataCallSettings.apnContexts;
+    for each (let apn in apnContexts.byAPN) {
+      if (apnContexts.byAPN[apn].iface && 
+           apnContexts.byAPN[apn].iface.connected) {
+        apnContexts.byAPN[apn].iface.disconnect();
+      }
+      delete apnContexts.byAPN[apn].iface;
+      delete apnContexts.byAPN[apn];
+    }
 
     // Clean data call setting. 
-    this.dataCallSettings = {};
-    this.dataCallSettings["enabled"] = false; 
+    this.dataCallSettings.enabled = false;
+    this.dataCallSettings.roaming_enabled = false;
+    this.dataCallSettings.cache = {};
+    this.dataCallSettings.apnContexts = {
+      byType: {},
+      byAPN: {},
+    };
   },
 
   // nsIRadioWorker
@@ -2201,75 +2311,38 @@ RadioInterfaceLayer.prototype = {
     }
   },
 
-  /**
-   * Determine whether secondary APN goes through default APN.
-   */
-  usingDefaultAPN: function usingDefaultAPN(apntype) {
-    switch (apntype) {
-      case "mms":
-        return (this.dataCallSettingsMMS["apn"] == this.dataCallSettings["apn"]);
-      case "supl":
-        return (this.dataCallSettingsSUPL["apn"] == this.dataCallSettings["apn"]);
-      return false;
-    }
-  },
-
   setupDataCallByType: function setupDataCallByType(apntype) {
-    if (apntype != "default" && this.usingDefaultAPN(apntype)) {
-      debug("Secondary APN type " + apntype + " goes through default APN, nothing to do.");
-      return;
+    if (this.dataCallSettings.apnContexts.byType[apntype] &&
+        this.dataCallSettings.apnContexts.byType[apntype].iface) {
+      this.dataCallSettings.apnContexts.byType[apntype].iface.connect();
     }
-    switch (apntype) {
-      case "default":
-        this.dataNetworkInterface.connect(this.dataCallSettings);
-        break;
-      case "mms":
-        this.mmsNetworkInterface.connect(this.dataCallSettingsMMS);
-        break;
-      case "supl":
-        this.suplNetworkInterface.connect(this.dataCallSettingsSUPL);
-        break;
-      default:
-        debug("Unsupported APN type " + apntype);
-        break;
+    else if (this.dataCallSettings.apnContexts.byType["default"] &&
+        this.dataCallSettings.apnContexts.byType["default"].iface) {
+      this.dataCallSettings.apnContexts.byType["default"].iface.connect();
     }
   },
 
   deactivateDataCallByType: function deactivateDataCallByType(apntype) {
-    if (apntype != "default" && this.usingDefaultAPN(apntype)) {
-      debug("Secondary APN type " + apntype + " goes through default APN, nothing to do.");
-      return;
+    if (this.dataCallSettings.apnContexts.byType[apntype] &&
+        this.dataCallSettings.apnContexts.byType[apntype].iface) {
+      this.dataCallSettings.apnContexts.byType[apntype].iface.disconnect();
     }
-    switch (apntype) {
-      case "default":
-        this.dataNetworkInterface.disconnect();
-        break;
-      case "mms":
-        this.mmsNetworkInterface.disconnect();
-        break;
-      case "supl":
-        this.suplNetworkInterface.disconnect();
-        break;
-      default:
-        debug("Unsupported APN type " + apntype);
-        break;
+    else if (this.dataCallSettings.apnContexts.byType["default"] &&
+        this.dataCallSettings.apnContexts.byType["default"].iface) {
+      this.dataCallSettings.apnContexts.byType["default"].iface.disconnect();
     }
   },
 
   getDataCallStateByType: function getDataCallStateByType(apntype) {
-    if (apntype != "default" && this.usingDefaultAPN(apntype)) {
-      return this.dataNetworkInterface.state;
+    if (this.dataCallSettings.apnContexts.byType[apntype] &&
+        this.dataCallSettings.apnContexts.byType[apntype].iface) {
+      return this.dataCallSettings.apnContexts.byType[apntype].iface.state;
     }
-    switch (apntype) {
-      case "default":
-        return this.dataNetworkInterface.state;
-      case "mms":
-        return this.mmsNetworkInterface.state;
-      case "supl":
-        return this.suplNetworkInterface.state;
-      default:
-        return RIL.GECKO_NETWORK_STATE_UNKNOWN;
+    else if (this.dataCallSettings.apnContexts.byType["default"] &&
+        this.dataCallSettings.apnContexts.byType["default"].iface) {
+      return this.dataCallSettings.apnContexts.byType["default"].iface.state;
     }
+    return RIL.GECKO_NETWORK_STATE_UNKNOWN;
   },
 
   setupDataCall: function setupDataCall(radioTech, apn, user, passwd, chappap, pdptype) {
@@ -2320,10 +2393,9 @@ RadioInterfaceLayer.prototype = {
   }
 };
 
-function RILNetworkInterface(ril, type)
-{
+function RILNetworkInterface(ril, apnSetting) {
   this.mRIL = ril;
-  this.type = type;
+  this.apnSetting = apnSetting;
 }
 
 RILNetworkInterface.prototype = {
@@ -2361,7 +2433,18 @@ RILNetworkInterface.prototype = {
   // Event timer for connection retries
   timer: null,
 
-  type: Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE,
+  get type() {
+    if (this.apnSetting.types.indexOf("default") != -1) {
+      return Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE;
+    }
+    else if (this.apnSetting.types.indexOf("data") != -1) {
+      return Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE;
+    }
+    else if (this.apnSetting.types.indexOf("mms") != -1) {
+      return Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE_MMS;
+    }
+    return Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE_SUPL;
+  },
 
   name: null,
 
@@ -2377,14 +2460,18 @@ RILNetworkInterface.prototype = {
 
   dns2: null,
 
-  httpProxyHost: null,
-
-  httpProxyPort: null,
+  get httpProxyHost() {
+    return this.apnSetting.httpProxyHost;
+  },
+ 
+  get httpProxyPort() {
+    return this.apnSetting.httpProxyPort;
+  },
 
   // nsIRILDataCallback
 
   dataCallError: function dataCallError(message) {
-    if (message.apn != this.dataCallSettings["apn"]) {
+    if (message.apn != this.apnSetting["apn"]) {
       return;
     }
     debug("Data call error on APN: " + message.apn);
@@ -2392,7 +2479,7 @@ RILNetworkInterface.prototype = {
   },
 
   dataCallStateChanged: function dataCallStateChanged(datacall) {
-    if (datacall.apn != this.dataCallSettings["apn"]) {
+    if (!this.cid && datacall.apn != this.apnSetting["apn"]) {
       return;
     }
     debug("Data call ID: " + datacall.cid + ", interface name: " +
@@ -2428,8 +2515,9 @@ RILNetworkInterface.prototype = {
     // In case the data setting changed while the datacall was being started or
     // ended, let's re-check the setting and potentially adjust the datacall
     // state again.
-    if (this == this.mRIL.dataNetworkInterface) {
-      this.mRIL.updateRILNetworkInterface();
+    if ((this.apnSetting.types.indexOf("default") != -1) || 
+         (this.apnSetting.types.indexOf("data") != -1)) {
+      this.mRIL.updateRILNetworkInterface(this.apnSetting);
     }
 
     if (this.state == RIL.GECKO_NETWORK_STATE_UNKNOWN &&
@@ -2453,16 +2541,22 @@ RILNetworkInterface.prototype = {
   registeredAsDataCallCallback: false,
   registeredAsNetworkInterface: false,
   connecting: false,
-  dataCallSettings: {},
+  apnSetting: {},
 
   // APN failed connections. Retry counter
   apnRetryCounter: 0,
+  ifaceRefCounter: 0,
 
   get connected() {
     return this.state == RIL.GECKO_NETWORK_STATE_CONNECTED;
   },
 
-  connect: function connect(options) {
+  connect: function connect() {
+    if (this.ifaceRefCounter > 0) {
+      this.ifaceRefCounter++;
+      return;
+    }
+    this.ifaceRefCounter = 1;
     if (this.connecting || this.connected) {
       return;
     }
@@ -2472,24 +2566,16 @@ RILNetworkInterface.prototype = {
       this.registeredAsDataCallCallback = true;
     }
 
-    if (options) {
-      // Save the APN data locally for using them in connection retries.
-      this.dataCallSettings = options;
-    }
-
-    if (!this.dataCallSettings["apn"]) {
+    if (!this.apnSetting["apn"]) {
       debug("APN name is empty, nothing to do.");
       return;
     }
 
-    this.httpProxyHost = this.dataCallSettings["httpProxyHost"];
-    this.httpProxyPort = this.dataCallSettings["httpProxyPort"];
-
-    debug("Going to set up data connection with APN " + this.dataCallSettings["apn"]);
+    debug("Going to set up data connection with APN " + this.apnSetting["apn"]);
     this.mRIL.setupDataCall(RIL.DATACALL_RADIOTECHNOLOGY_GSM,
-                            this.dataCallSettings["apn"], 
-                            this.dataCallSettings["user"], 
-                            this.dataCallSettings["passwd"],
+                            this.apnSetting["apn"], 
+                            this.apnSetting["user"], 
+                            this.apnSetting["passwd"],
                             RIL.DATACALL_AUTH_PAP_OR_CHAP, "IP");
     this.connecting = true;
   },
@@ -2497,6 +2583,7 @@ RILNetworkInterface.prototype = {
   reset: function reset() {
     let apnRetryTimer;
     this.connecting = false;
+    this.ifaceRefCounter--;
     // We will retry the connection in increasing times
     // based on the function: time = A * numer_of_retries^2 + B
     if (this.apnRetryCounter >= this.NETWORK_APNRETRY_MAXRETRIES) {
@@ -2522,6 +2609,9 @@ RILNetworkInterface.prototype = {
   },
 
   disconnect: function disconnect() {
+    if (--this.ifaceRefCounter > 0) {
+      return;
+    }
     if (this.state == RIL.GECKO_NETWORK_STATE_DISCONNECTING ||
         this.state == RIL.GECKO_NETWORK_STATE_DISCONNECTED) {
       return;
@@ -2552,6 +2642,8 @@ function MSimRadioInterfaceLayer() {
     this.mRILs.push(new RadioInterfaceLayer(i));
   }
 
+  Services.obs.addObserver(this, kMozSettingsChangedObserverTopic, false);
+
   ppmm.addMessageListener("child-process-shutdown", this);
   for (let msgname of RIL_IPC_TELEPHONY_MSG_NAMES) {
     ppmm.addMessageListener(msgname, this);
@@ -2562,7 +2654,48 @@ function MSimRadioInterfaceLayer() {
   for (let msgname of RIL_IPC_VOICEMAIL_MSG_NAMES) {
     ppmm.addMessageListener(msgname, this);
   }
+  // Read the 'ril.radio.disabled' setting in order to start with a known
+  // value at boot time.
+  let lock = gSettingsService.createLock();
+  // Following are old Settings
 
+  lock.get("ril.radio.disabled", this);
+
+  // Read preferred network type from the setting DB.
+  lock.get("ril.radio.preferredNetworkType", this);
+
+  // Read the APN data from the settings DB.
+  lock.get("ril.data.apn", this);
+  lock.get("ril.data.user", this);
+  lock.get("ril.data.passwd", this);
+  lock.get("ril.data.httpProxyHost", this);
+  lock.get("ril.data.httpProxyPort", this);
+  lock.get("ril.data.roaming_enabled", this);
+  lock.get("ril.data.enabled", this);
+
+  // Read secondary APNs from the settings DB.
+  lock.get("ril.mms.apn", this);
+  lock.get("ril.mms.user", this);
+  lock.get("ril.mms.passwd", this);
+  lock.get("ril.mms.httpProxyHost", this);
+  lock.get("ril.mms.httpProxyPort", this);
+  lock.get("ril.supl.apn", this);
+  lock.get("ril.supl.user", this);
+  lock.get("ril.supl.passwd", this);
+  lock.get("ril.supl.httpProxyHost", this);
+  lock.get("ril.supl.httpProxyPort", this);
+  // Read the 'time.nitz.automatic-update.enabled' setting to see if
+  // we need to adjust the system clock time and time zone by NITZ.
+  lock.get(kTimeNitzAutomaticUpdateEnabled, this);
+
+  //Following are new Settings, read all settings for multi-SIM.
+  for (let i = 0; i < NUM_RILS; i++) {
+    lock.get("ril." + i + ".radio.disabled", this);
+    lock.get("ril." + i + ".radio.preferredNetworkType",  this);
+    lock.get("ril." + i + ".data.roaming_enabled" ,this);
+    lock.get("ril." + i + ".data.enabled" ,this);
+  }
+  lock.get("ril.data.apnSettings", this);
 };
 MSimRadioInterfaceLayer.prototype = {
   classID:   MSIMRADIOINTERFACELAYER_CID,
@@ -2572,7 +2705,9 @@ MSimRadioInterfaceLayer.prototype = {
      interfaces: [Ci.nsIMSimWorkerHolder, Ci.nsIMSimRadioInterfaceLayer]}),
 
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIMSimWorkerHolder,
-                                         Ci.nsIMSimRadioInterfaceLayer]),
+                                         Ci.nsIMSimRadioInterfaceLayer,
+                                         Ci.nsIObserver,
+                                         Ci.nsISettingsServiceCallback]),
 
   onerror: function onerror(event) {
     debug("Got an error: " + event.filename + ":" +
@@ -2595,6 +2730,36 @@ MSimRadioInterfaceLayer.prototype = {
   getWorker: function getWorker(i) {
     debug("getWorker "+i);
     return this.mRILs[i].worker;
+  },
+
+  mRILSettingsRE: new RegExp("^ril\\.(0|[1-9]\\d*)\\.([^\\.]+)\\.([\\w.]+)"),
+  // nsISettingsServiceCallback
+  handle: function handle(aName, aResult) {
+    let matched;
+    if ((matched = aName.match(this.mRILSettingsRE)) == null) {
+      if (aName != "ril.data.apnSettings") {
+        //pass to the old handle() of SIM1
+        this.mRILs[0].handle(aName, aResult);
+      }
+      else {
+        for (let simIndex in aResult) {
+          this.mRILs[simIndex].handleDataSettings(aResult[simIndex]);
+        }
+      }
+      return;
+    }
+    let settingKey = "ril."+matched[2]+"."+matched[3];
+    this.mRILs[matched[1]].handle(settingKey, aResult);
+  },
+
+  // nsIObserver
+  observe: function observe(subject, topic, data) {
+    switch (topic) {
+      case kMozSettingsChangedObserverTopic:
+        let setting = JSON.parse(data);
+        this.handle(setting.key, setting.value);
+        break;
+    }
   },
 
 };
