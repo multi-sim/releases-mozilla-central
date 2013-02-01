@@ -52,12 +52,15 @@ interface nsIMobileConnectionProvider : nsISupports
   nsIDOMDOMRequest cancelMMI(in nsIDOMWindow window,
                              in unsigned long subscriptionId);
 
-  void sendStkResponse(in nsIDOMWindow window,
-                       in jsval        command,
-                       in jsval        response);
+  void sendStkResponse(in nsIDOMWindow  window,
+                       in jsval         command,
+                       in jsval         response,
+                       in unsigned long subscriptionId);
   void sendStkMenuSelection(in nsIDOMWindow   window,
                             in unsigned short itemIdentifier,
-                            in boolean        helpRequested);
-  void sendStkEventDownload(in nsIDOMWindow window,
-                            in jsval        event);
+                            in boolean        helpRequested,
+                            in unsigned long  subscriptionId);
+  void sendStkEventDownload(in nsIDOMWindow  window,
+                            in jsval         event,
+                            in unsigned long subscriptionId);
 };

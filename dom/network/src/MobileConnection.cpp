@@ -110,7 +110,7 @@ MobileConnection::Init(nsPIDOMWindow* aWindow)
   obs->AddObserver(this, kIccCardLockErrorTopic, false);
 
   mIccManager = new icc::IccManager();
-  mIccManager->Init(aWindow);
+  mIccManager->Init(aWindow, mSubscriptionId);
 }
 
 void
