@@ -177,8 +177,8 @@ Navigator::Invalidate()
     mTelephonyManager = nullptr;
   }
 
-  if (mVoicemail) {
-    mVoicemail = nullptr;
+  if (mVoicemailManager) {
+    mVoicemailManager = nullptr;
   }
 #endif
 
@@ -1175,23 +1175,21 @@ Navigator::GetMozTelephonyManager(nsIDOMTelephonyManager** aTelephonyManager)
 }
 
 NS_IMETHODIMP
-Navigator::GetMozVoicemail(nsIDOMMozVoicemail** aVoicemail)
+Navigator::GetMozVoicemailManager(nsIDOMMozVoicemailManager** aVoicemailManager)
 {
-  *aVoicemail = nullptr;
+  *aVoicemailManager = nullptr;
 
-  if (!mVoicemail) {
+  if (!mVoicemailManager) {
     nsCOMPtr<nsPIDOMWindow> window = do_QueryReferent(mWindow);
     NS_ENSURE_TRUE(window, NS_OK);
 
     if (!CheckPermission("voicemail")) {
       return NS_OK;
     }
-
-    nsresult rv = NS_NewVoicemail(window, getter_AddRefs(mVoicemail));
+    nsresult rv = NS_NewVoicemailManager(window, getter_AddRefs(mVoicemailManager));
     NS_ENSURE_SUCCESS(rv, rv);
   }
-
-  NS_ADDREF(*aVoicemail = mVoicemail);
+  NS_ADDREF(*aVoicemailManager = mVoicemailManager);
   return NS_OK;
 }
 

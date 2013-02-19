@@ -509,6 +509,7 @@ using mozilla::dom::indexedDB::IDBWrapperCache;
 #include "Telephony.h"
 #include "TelephonyCall.h"
 #include "CallEvent.h"
+#include "nsIDOMVoicemailManager.h"
 #include "nsIDOMVoicemail.h"
 #include "nsIDOMVoicemailEvent.h"
 #include "nsIDOMIccManager.h"
@@ -1659,6 +1660,8 @@ static nsDOMClassInfoData sClassInfoData[] = {
                            EVENTTARGET_SCRIPTABLE_FLAGS)
   NS_DEFINE_CLASSINFO_DATA(CallEvent, nsDOMGenericSH,
                            DOM_DEFAULT_SCRIPTABLE_FLAGS)
+  NS_DEFINE_CLASSINFO_DATA(MozVoicemailManager, nsEventTargetSH,
+                           EVENTTARGET_SCRIPTABLE_FLAGS)
   NS_DEFINE_CLASSINFO_DATA(MozVoicemail, nsEventTargetSH,
                            EVENTTARGET_SCRIPTABLE_FLAGS)
   NS_DEFINE_CLASSINFO_DATA(MozVoicemailEvent, nsDOMGenericSH,
@@ -4391,6 +4394,11 @@ nsDOMClassInfo::Init()
   DOM_CLASSINFO_MAP_BEGIN(CallEvent, nsIDOMCallEvent)
     DOM_CLASSINFO_MAP_ENTRY(nsIDOMCallEvent)
     DOM_CLASSINFO_MAP_ENTRY(nsIDOMEvent)
+  DOM_CLASSINFO_MAP_END
+
+  DOM_CLASSINFO_MAP_BEGIN(MozVoicemailManager, nsIDOMMozVoicemailManager)
+    DOM_CLASSINFO_MAP_ENTRY(nsIDOMMozVoicemailManager)
+    DOM_CLASSINFO_MAP_ENTRY(nsIDOMEventTarget)
   DOM_CLASSINFO_MAP_END
 
   DOM_CLASSINFO_MAP_BEGIN(MozVoicemail, nsIDOMMozVoicemail)
