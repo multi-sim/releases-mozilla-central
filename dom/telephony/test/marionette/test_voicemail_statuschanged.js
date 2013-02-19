@@ -3,7 +3,7 @@
 
 SpecialPowers.addPermission("voicemail", true, document);
 
-let voicemail = window.navigator.mozVoicemail;
+let voicemail = window.navigator.mozVoicemailManager.defaultVoicemail;
 ok(voicemail instanceof MozVoicemail);
 is(voicemail.status, null);
 

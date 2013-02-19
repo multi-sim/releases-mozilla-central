@@ -5,7 +5,9 @@ MARIONETTE_TIMEOUT = 10000;
 
 SpecialPowers.addPermission("voicemail", true, document);
 
-let voicemail = window.navigator.mozVoicemail;
+let mgr = window.navigator.mozVoicemailManager;
+ok(mgr);
+let voicemail = mgr.defaultVoicemail;
 ok(voicemail instanceof MozVoicemail);
 
 // These are the emulator's hard coded voicemail number and alphaId
