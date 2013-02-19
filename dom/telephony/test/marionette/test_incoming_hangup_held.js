@@ -5,12 +5,14 @@ MARIONETTE_TIMEOUT = 10000;
 
 SpecialPowers.addPermission("telephony", true, document);
 
-let telephony = window.navigator.mozTelephony;
+let mgr = window.navigator.mozTelephonyManager;
+let telephony = mgr.defaultPhone;
 let inNumber = "5555551111";
 let incomingCall;
 
 function verifyInitialState() {
   log("Verifying initial state.");
+  ok(mgr);
   ok(telephony);
   is(telephony.active, null);
   ok(telephony.calls);
@@ -36,6 +38,7 @@ function simulateIncoming() {
     is(telephony.calls.length, 1);
     is(telephony.calls[0], incomingCall);
 
+    is(mgr.phoneState, "ringtone");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "inbound from " + inNumber + " : incoming");
@@ -65,6 +68,7 @@ function answerIncoming() {
 
     is(incomingCall, telephony.active);
 
+    is(mgr.phoneState, "incall");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "inbound from " + inNumber + " : active");
@@ -96,6 +100,7 @@ function hold() {
     is(telephony.calls.length, 1);
     is(telephony.calls[0], incomingCall);
 
+    is(mgr.phoneState, "idle");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "inbound from " + inNumber + " : held");
@@ -126,6 +131,7 @@ function hangUp() {
     is(telephony.active, null);
     is(telephony.calls.length, 0);
 
+    is(mgr.phoneState, "idle");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "OK");

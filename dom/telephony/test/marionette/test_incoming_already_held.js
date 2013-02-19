@@ -5,7 +5,8 @@ MARIONETTE_TIMEOUT = 10000;
 
 SpecialPowers.addPermission("telephony", true, document);
 
-let telephony = window.navigator.mozTelephony;
+let mgr = window.navigator.mozTelephonyManager;
+let telephony = mgr.defaultPhone;
 let outNumber = "5555551111";
 let inNumber = "5555552222";
 let outgoingCall;
@@ -14,6 +15,7 @@ let gotOriginalConnected = false;
 
 function verifyInitialState() {
   log("Verifying initial state.");
+  ok(mgr);
   ok(telephony);
   is(telephony.active, null);
   ok(telephony.calls);
@@ -41,7 +43,7 @@ function dial() {
     log("Received 'onalerting' call event.");
     is(outgoingCall, event.call);
     is(outgoingCall.state, "alerting");
-
+    is(mgr.phoneState, "incall");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "outbound to  " + outNumber + " : ringing");
@@ -126,6 +128,7 @@ function simulateIncoming() {
     is(telephony.calls.length, 2);
     is(telephony.calls[0], outgoingCall);
     is(telephony.calls[1], incomingCall);
+    is(mgr.phoneState, "ringtone");
 
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
@@ -158,6 +161,7 @@ function answerIncoming() {
 
     is(incomingCall, telephony.active);
     is(outgoingCall.state, "held");
+    is(mgr.phoneState, "incall");
 
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
@@ -191,6 +195,7 @@ function hangUpOutgoing() {
     // Back to one call now
     is(telephony.calls.length, 1);
     is(incomingCall.state, "connected");
+    is(mgr.phoneState, "incall");
 
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
@@ -223,6 +228,7 @@ function hangUpIncoming() {
     // Zero calls left
     is(telephony.active, null);
     is(telephony.calls.length, 0);
+    is(mgr.phoneState, "idle");
 
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);

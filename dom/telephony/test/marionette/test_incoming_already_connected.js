@@ -5,7 +5,8 @@ MARIONETTE_TIMEOUT = 10000;
 
 SpecialPowers.addPermission("telephony", true, document);
 
-let telephony = window.navigator.mozTelephony;
+let mgr = window.navigator.mozTelephonyManager;
+let telephony = mgr.defaultPhone;
 let outNumber = "5555551111";
 let inNumber = "5555552222";
 let outgoingCall;
@@ -17,6 +18,7 @@ function verifyInitialState() {
   ok(telephony);
   is(telephony.active, null);
   ok(telephony.calls);
+  is(mgr.calls.length, 0);
   is(telephony.calls.length, 0);
 
   runEmulatorCmd("gsm list", function(result) {
@@ -34,13 +36,17 @@ function dial() {
   is(outgoingCall.state, "dialing");
 
   is(outgoingCall, telephony.active);
+  is(mgr.calls.length, 1);
   is(telephony.calls.length, 1);
+  is(mgr.calls[0], outgoingCall);
   is(telephony.calls[0], outgoingCall);
 
   outgoingCall.onalerting = function onalerting(event) {
     log("Received 'onalerting' call event.");
     is(outgoingCall, event.call);
     is(outgoingCall.state, "alerting");
+
+    is(mgr.phoneState, "incall");
 
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
@@ -93,8 +99,14 @@ function simulateIncoming() {
 
     // Should be two calls now
     is(telephony.calls.length, 2);
+    is(mgr.calls.length, 2);
     is(telephony.calls[0], outgoingCall);
+    is(mgr.calls[0], outgoingCall);
     is(telephony.calls[1], incomingCall);
+    is(mgr.calls[1], incomingCall);
+
+    // Still have another call occupying audio.
+    is(mgr.phoneState, "incall");
 
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
@@ -158,6 +170,7 @@ function hangUpOutgoing() {
     ok(gotDisconnecting);
 
     // Back to one call now
+    is(mgr.calls.length, 1);
     is(telephony.calls.length, 1);
     is(incomingCall.state, "connected");
 
@@ -191,7 +204,10 @@ function hangUpIncoming() {
 
     // Zero calls left
     is(telephony.active, null);
+    is(mgr.calls.length, 0);
     is(telephony.calls.length, 0);
+
+    is(mgr.phoneState, "idle");
 
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);

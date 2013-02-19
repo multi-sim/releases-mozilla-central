@@ -5,7 +5,8 @@ MARIONETTE_TIMEOUT = 10000;
 
 SpecialPowers.addPermission("telephony", true, document);
 
-let telephony = window.navigator.mozTelephony;
+let mgr = window.navigator.mozTelephonyManager;
+let telephony = mgr.defaultPhone;
 let number = "5555552368";
 let outgoing;
 let calls;
@@ -43,6 +44,7 @@ function dial() {
     is(outgoing, event.call);
     is(outgoing.state, "alerting");
 
+    is(mgr.phoneState, "incall");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "outbound to  " + number + " : ringing");
@@ -64,6 +66,7 @@ function reject() {
     is(telephony.active, null);
     is(telephony.calls.length, 0);
 
+    is(mgr.phoneState, "idle");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "OK");
