@@ -505,6 +505,7 @@ using mozilla::dom::indexedDB::IDBWrapperCache;
 #include "mozilla/dom/network/Utils.h"
 
 #ifdef MOZ_B2G_RIL
+#include "TelephonyManager.h"
 #include "Telephony.h"
 #include "TelephonyCall.h"
 #include "CallEvent.h"
@@ -1650,6 +1651,8 @@ static nsDOMClassInfoData sClassInfoData[] = {
                            DOM_DEFAULT_SCRIPTABLE_FLAGS)
 
 #ifdef MOZ_B2G_RIL
+  NS_DEFINE_CLASSINFO_DATA(TelephonyManager, nsEventTargetSH,
+                           EVENTTARGET_SCRIPTABLE_FLAGS)
   NS_DEFINE_CLASSINFO_DATA(Telephony, nsEventTargetSH,
                            EVENTTARGET_SCRIPTABLE_FLAGS)
   NS_DEFINE_CLASSINFO_DATA(TelephonyCall, nsEventTargetSH,
@@ -4368,6 +4371,11 @@ nsDOMClassInfo::Init()
   DOM_CLASSINFO_MAP_BEGIN(MozWifiConnectionInfoEvent, nsIDOMMozWifiConnectionInfoEvent)
      DOM_CLASSINFO_MAP_ENTRY(nsIDOMMozWifiConnectionInfoEvent)
      DOM_CLASSINFO_EVENT_MAP_ENTRIES
+  DOM_CLASSINFO_MAP_END
+
+  DOM_CLASSINFO_MAP_BEGIN(TelephonyManager, nsIDOMTelephonyManager)
+    DOM_CLASSINFO_MAP_ENTRY(nsIDOMTelephonyManager)
+    DOM_CLASSINFO_MAP_ENTRY(nsIDOMEventTarget)
   DOM_CLASSINFO_MAP_END
 
   DOM_CLASSINFO_MAP_BEGIN(Telephony, nsIDOMTelephony)

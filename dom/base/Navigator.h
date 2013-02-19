@@ -36,6 +36,7 @@ class nsIDOMMozConnection;
 
 #ifdef MOZ_B2G_RIL
 #include "nsIDOMNavigatorTelephony.h"
+class nsIDOMTelephonyManager;
 class nsIDOMTelephony;
 class nsIDOMMozVoicemail;
 #endif
@@ -172,6 +173,7 @@ private:
   nsRefPtr<power::PowerManager> mPowerManager;
   nsRefPtr<sms::SmsManager> mSmsManager;
 #ifdef MOZ_B2G_RIL
+  nsCOMPtr<nsIDOMTelephonyManager> mTelephonyManager;
   nsCOMPtr<nsIDOMTelephony> mTelephony;
   nsCOMPtr<nsIDOMMozVoicemail> mVoicemail;
 #endif

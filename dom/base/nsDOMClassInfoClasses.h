@@ -490,6 +490,7 @@ DOMCI_CLASS(MutationObserver)
 DOMCI_CLASS(MutationRecord)
 
 #ifdef MOZ_B2G_RIL
+DOMCI_CLASS(TelephonyManager)
 DOMCI_CLASS(Telephony)
 DOMCI_CLASS(TelephonyCall)
 DOMCI_CLASS(CallEvent)
