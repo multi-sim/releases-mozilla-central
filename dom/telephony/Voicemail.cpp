@@ -5,8 +5,10 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "Voicemail.h"
+#include "VoicemailManager.h"
 #include "nsIDOMVoicemailStatus.h"
 
+#include "nsPIDOMWindow.h"
 #include "mozilla/Services.h"
 #include "nsContentUtils.h"
 #include "nsDOMClassInfo.h"
@@ -14,9 +16,6 @@
 #include "nsServiceManagerUtils.h"
 
 #include "VoicemailEvent.h"
-
-// TODO Determine default phone.
-#define DEFAULT_PHONE_INDEX 0
 
 DOMCI_DATA(MozVoicemail, mozilla::dom::telephony::Voicemail)
 
@@ -42,29 +41,47 @@ NS_IMPL_RELEASE_INHERITED(Voicemail, nsDOMEventTargetHelper)
 
 NS_IMPL_ISUPPORTS1(Voicemail::RILVoicemailCallback, nsIRILVoicemailCallback)
 
-Voicemail::Voicemail(nsPIDOMWindow* aWindow, nsIRILContentHelper* aRIL)
-  : mRIL(aRIL)
+Voicemail::Voicemail()
 {
-  BindToOwner(aWindow);
-
-  mRILVoicemailCallback = new RILVoicemailCallback(this);
-
-  nsresult rv = aRIL->RegisterVoicemailCallback(DEFAULT_PHONE_INDEX, mRILVoicemailCallback);
-  if (NS_FAILED(rv)) {
-    NS_WARNING("Failed registering voicemail callback with RIL");
-  }
-
-  rv = aRIL->RegisterVoicemailMsg(DEFAULT_PHONE_INDEX);
-  if (NS_FAILED(rv)) {
-    NS_WARNING("Failed registering voicemail messages with RIL");
-  }
 }
 
 Voicemail::~Voicemail()
 {
   if (mRIL && mRILVoicemailCallback) {
-    mRIL->UnregisterVoicemailCallback(DEFAULT_PHONE_INDEX, mRILVoicemailCallback);
+    mRIL->UnregisterVoicemailCallback(mSubscriptionId, mRILVoicemailCallback);
   }
+}
+
+// static
+already_AddRefed<Voicemail>
+Voicemail::Create(nsPIDOMWindow* aOwner, uint32_t aSubscriptionId)
+{
+  NS_ASSERTION(aOwner, "Null owner!");
+
+  nsRefPtr<Voicemail> voicemail = new Voicemail();
+
+  voicemail->BindToOwner(aOwner);
+  voicemail->mSubscriptionId = aSubscriptionId;
+
+  nsCOMPtr<nsIRILContentHelper> ril =
+    do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
+  NS_ENSURE_TRUE(ril, nullptr);
+
+  voicemail->mRIL = ril;
+  voicemail->mRILVoicemailCallback = new RILVoicemailCallback(voicemail);
+
+  nsresult rv = ril->RegisterVoicemailCallback(aSubscriptionId,
+                                               voicemail->mRILVoicemailCallback);
+  if (NS_FAILED(rv)) {
+    NS_WARNING("Failed registering voicemail callback with RIL");
+  }
+
+  rv = ril->RegisterVoicemailMsg(aSubscriptionId);
+  if (NS_FAILED(rv)) {
+    NS_WARNING("Failed registering voicemail messages with RIL");
+  }
+
+  return voicemail.forget();
 }
 
 // nsIDOMMozVoicemail
@@ -75,7 +92,7 @@ Voicemail::GetStatus(nsIDOMMozVoicemailStatus** aStatus)
   *aStatus = nullptr;
 
   NS_ENSURE_STATE(mRIL);
-  return mRIL->GetVoicemailStatus(DEFAULT_PHONE_INDEX, aStatus);
+  return mRIL->GetVoicemailStatus(mSubscriptionId, aStatus);
 }
 
 NS_IMETHODIMP
@@ -84,7 +101,7 @@ Voicemail::GetNumber(nsAString& aNumber)
   NS_ENSURE_STATE(mRIL);
   aNumber.SetIsVoid(true);
 
-  return mRIL->GetVoicemailNumber(DEFAULT_PHONE_INDEX, aNumber);
+  return mRIL->GetVoicemailNumber(mSubscriptionId, aNumber);
 }
 
 NS_IMETHODIMP
@@ -93,7 +110,7 @@ Voicemail::GetDisplayName(nsAString& aDisplayName)
   NS_ENSURE_STATE(mRIL);
   aDisplayName.SetIsVoid(true);
 
-  return mRIL->GetVoicemailDisplayName(DEFAULT_PHONE_INDEX, aDisplayName);
+  return mRIL->GetVoicemailDisplayName(mSubscriptionId, aDisplayName);
 }
 
 NS_IMPL_EVENT_HANDLER(Voicemail, statuschanged)
@@ -109,20 +126,4 @@ Voicemail::VoicemailNotification(nsIDOMMozVoicemailStatus* aStatus)
   NS_ENSURE_SUCCESS(rv, rv);
 
   return DispatchTrustedEvent(static_cast<nsIDOMMozVoicemailEvent*>(event));
-}
-
-nsresult
-NS_NewVoicemail(nsPIDOMWindow* aWindow, nsIDOMMozVoicemail** aVoicemail)
-{
-  nsPIDOMWindow* innerWindow = aWindow->IsInnerWindow() ?
-    aWindow :
-    aWindow->GetCurrentInnerWindow();
-
-  nsCOMPtr<nsIRILContentHelper> ril =
-    do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
-  NS_ENSURE_STATE(ril);
-
-  nsRefPtr<Voicemail> voicemail = new Voicemail(innerWindow, ril);
-  voicemail.forget(aVoicemail);
-  return NS_OK;
 }
