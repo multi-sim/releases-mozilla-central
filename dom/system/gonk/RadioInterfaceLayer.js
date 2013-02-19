@@ -83,7 +83,8 @@ const RIL_IPC_MOBILECONNECTION_MSG_NAMES = [
 ];
 
 const RIL_IPC_VOICEMAIL_MSG_NAMES = [
-  "RIL:RegisterVoicemailMsg"
+  "RIL:RegisterVoicemailMsg",
+  "RIL:GetVoicemailInfo"
 ];
 
 XPCOMUtils.defineLazyServiceGetter(this, "gSmsService",
@@ -211,6 +212,11 @@ function RadioInterfaceLayer(subscriptionId, simManager) {
                      type: null,
                      signalStrength: null,
                      relSignalStrength: null},
+  };
+
+  this.voicemailInfo = {
+    number: null,
+    displayName: null
   };
 
   this.callWaitingStatus = null;
@@ -528,7 +534,7 @@ RadioInterfaceLayer.prototype = {
         }
         break;
       case "iccmbdn":
-        this._sendTargetMessage("voicemail", "RIL:VoicemailNumberChanged", message);
+        this.handleICCMbdn(message);
         break;
       case "USSDReceived":
         debug("USSDReceived " + JSON.stringify(message));
@@ -635,6 +641,7 @@ RadioInterfaceLayer.prototype = {
   },
 
   _sendTargetMessage: function _sendTargetMessage(permission, message, options) {
+    debug("SendTargetMessage: " + permission + " : " + message + " : " + JSON.stringify(options));
     let targets = this._messageManagerByPermission[permission];
     if (!targets) {
       return;
@@ -1368,6 +1375,14 @@ RadioInterfaceLayer.prototype = {
     }
   },
 
+  handleICCMbdn: function handleICCMbdn(message) {
+    let voicemailInfo = this.voicemailInfo;
+
+    voicemailInfo.number = message.number;
+    voicemailInfo.displayName = message.alphaId;
+    this._sendTargetMessage("voicemail", "RIL:VoicemailInfoChanged", voicemailInfo);
+  },
+
   handleICCInfoChange: function handleICCInfoChange(message) {
     let oldIcc = this.rilContext.icc;
     this.rilContext.icc = message;
@@ -1568,6 +1583,7 @@ RadioInterfaceLayer.prototype = {
 
   rilContext: null,
 
+  voicemailInfo: null,
   // Handle phone functions of nsIRILContentHelper
 
   enumerateCalls: function enumerateCalls(message) {
@@ -2596,11 +2612,12 @@ MSimRadioInterfaceLayer.prototype = {
       case "RIL:RegisterTelephonyManagerMsg":
         this.registerMessageTarget("telephony", msg.target);
         break;
+      case "RIL:GetVoicemailInfo":
+        // This message is sync.
+        return this.mRILs[msg.json.subscriptionId].voicemailInfo;
       default:
         // Dispatch the message to the specified instance.
-        //TODO currently content hasn't added subscriptionId yet
-        let id = (msg.json && msg.json.subscriptionId) || 0;
-        this.mRILs[/*msg.json.subscriptionId*/id].receiveMessage(msg);
+        this.mRILs[msg.json.subscriptionId].receiveMessage(msg);
     }
   },
 
