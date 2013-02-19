@@ -10,6 +10,18 @@ interface nsIDOMDOMRequest;
 interface nsIDOMWindow;
 interface nsIDOMMozVoicemailStatus;
 
+[scriptable, uuid(6ad42d44-79e7-11e2-902e-afefdcbb5057)]
+interface nsIRILTelephonyManagerCallback : nsISupports
+{
+  /**
+   * Notified when phone audio state changes.
+   *
+   * @param state
+   *        Possibile values: "incall", "ringtone" and "idle".
+   */
+  void phoneStateChanged(in AString state);
+};
+
 [scriptable, uuid(c14c71b8-afba-403b-8320-94593de9380f)]
 interface nsIRILTelephonyCallback : nsISupports
 {
@@ -139,9 +151,12 @@ interface nsIRILContactCallback : nsISupports
  * Helper that runs in the content process and exposes information
  * to the DOM.
  */
-[scriptable, uuid(483a7c55-6f14-42eb-82d1-278300caf5c2)]
+[scriptable, uuid(d95ff36c-79ea-11e2-bf4f-079ad2b86c23)]
 interface nsIRILContentHelper : nsIMobileConnectionProvider
 {
+  void registerTelephonyManagerCallback(in nsIRILTelephonyManagerCallback callback);
+  void unregisterTelephonyManagerCallback(in nsIRILTelephonyManagerCallback callback);
+
   void registerTelephonyCallback(in unsigned long subscriptionId,
                                  in nsIRILTelephonyCallback callback);
   void unregisterTelephonyCallback(in unsigned long subscriptionId,
@@ -194,12 +209,10 @@ interface nsIRILContentHelper : nsIMobileConnectionProvider
   void holdCall(in unsigned long subscriptionId, in unsigned long callIndex);
   void resumeCall(in unsigned long subscriptionId, in unsigned long callIndex);
 
-  bool getMicrophoneMuted(in unsigned long subscriptionId);
-  void setMicrophoneMuted(in unsigned long subscriptionId,
-                          in bool muted);
-
-  bool getSpeakerEnabled(in unsigned long subscriptionId);
-  void setSpeakerEnabled(in unsigned long subscriptionId, in bool enabled);
+  // Audio is controled by the manager of subscription instances, so
+  // no subscriptionId needs to be specified.
+  attribute bool microphoneMuted;
+  attribute bool speakerEnabled;
 
   nsIDOMMozVoicemailStatus getVoicemailStatus(in unsigned long subscriptionId);
   DOMString getVoicemailNumber(in unsigned long subscriptionId);
