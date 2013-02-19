@@ -64,7 +64,8 @@ const RIL_IPC_MSG_NAMES = [
   "RIL:CancelMMI:Return:KO",
   "RIL:StkCommand",
   "RIL:StkSessionEnd",
-  "RIL:DataError"
+  "RIL:DataError",
+  "RIL:PhoneStateChanged"
 ];
 
 const kVoiceChangedTopic     = "mobile-connection-voice-changed";
@@ -544,7 +545,7 @@ RILContentHelper.prototype = {
       callbacks = this._callbackManagerById[subscriptionId][callbackType] = [];
     }
     if (callbacks.indexOf(callback) != -1) {
-      debug("Already registered this telephonyCallback.");
+      debug("Already registered this " + callbackType + " Callback.");
       return;
     }
 
@@ -565,6 +566,19 @@ RILContentHelper.prototype = {
       callbacks.splice(index, 1);
       if (DEBUG) debug("Unregistered " + callbackType + " callback: " + callback);
     }
+  },
+
+  registerTelephonyManagerCallback: function registerTelephonyManagerCallback(callback) {
+    // There's only one telephony manager per window. It's no problem we
+    // use '0' as its fake subscriptionId.
+    this.registerCallback(0, "_telephonyManagerCallbacks", callback);
+    cpmm.sendAsyncMessage("RIL:RegisterTelephonyManagerMsg");
+  },
+
+  unregisterTelephonyManagerCallback: function unregisterTelephonyManagerCallback(callback) {
+    // There's only one telephony manager per window. It's no problem we
+    // use '0' as its fake subscriptionId.
+    this.unregisterCallback(0, "_telephonyManagerCallbacks", callback);
   },
 
   registerTelephonyCallback: function registerTelephonyCallback(subscriptionId, callback) {
@@ -689,30 +703,20 @@ RILContentHelper.prototype = {
     });
   },
 
-  getMicrophoneMuted: function getMicrophoneMuted(subscriptionId) {
-    return cpmm.sendSyncMessage("RIL:GetMicrophoneMuted", {
-      subscriptionId: subscriptionId
-    })[0];
+  getMicrophoneMuted: function getMicrophoneMuted() {
+    return cpmm.sendSyncMessage("RIL:GetMicrophoneMuted")[0];
   },
 
-  setMicrophoneMuted: function getMicrophoneMuted(subscriptionId, value) {
-    cpmm.sendAsyncMessage("RIL:SetMicrophoneMuted", {
-      subscriptionId: subscriptionId,
-      data: value
-    });
+  setMicrophoneMuted: function getMicrophoneMuted(value) {
+    cpmm.sendAsyncMessage("RIL:SetMicrophoneMuted", {data: value});
   },
 
-  getSpeakerEnabled: function getSpeakerEnabled(subscriptionId) {
-    return cpmm.sendSyncMessage("RIL:GetSpeakerEnabled", {
-      subscriptionId: subscriptionId
-    })[0];
+  getSpeakerEnabled: function getSpeakerEnabled() {
+    return cpmm.sendSyncMessage("RIL:GetSpeakerEnabled")[0];
   },
 
-  setSpeakerEnabled: function setSpeakerEnabled(subscriptionId, value) {
-    cpmm.sendAsyncMessage("RIL:SetSpeakerEnabled", {
-      subscriptionId: subscriptionId,
-      data: value
-    });
+  setSpeakerEnabled: function setSpeakerEnabled(value) {
+    cpmm.sendAsyncMessage("RIL:SetSpeakerEnabled", {data: value});
   },
 
   // nsIObserver
@@ -888,6 +892,11 @@ RILContentHelper.prototype = {
                                  this.dataConnectionInfo[msg.json.subscriptionId]);
         Services.obs.notifyObservers(null, kDataErrorTopic, result);
         break;
+      case "RIL:PhoneStateChanged":
+        this._deliverCallback(msg.json.subscriptionId,
+                              "_telephonyManagerCallbacks",
+                              "phoneStateChanged",
+                              [msg.json.data]);
     }
   },
 

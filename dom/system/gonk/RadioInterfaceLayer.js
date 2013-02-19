@@ -62,7 +62,8 @@ const RIL_IPC_TELEPHONY_MSG_NAMES = [
   "RIL:RejectCall",
   "RIL:HoldCall",
   "RIL:ResumeCall",
-  "RIL:RegisterTelephonyMsg"
+  "RIL:RegisterTelephonyMsg",
+  "RIL:RegisterTelephonyManagerMsg"
 ];
 
 const RIL_IPC_MOBILECONNECTION_MSG_NAMES = [
@@ -643,18 +644,6 @@ RadioInterfaceLayer.prototype = {
       target.sendAsyncMessage(message, {data: options,
                                         subscriptionId: this.subscriptionId});
     }
-  },
-
-  _sendTelephonyMessage: function sendTelephonyMessage(message, options) {
-    this._sendTargetMessage("telephony", message, options);
-  },
-
-  _sendMobileConnectionMessage: function sendMobileConnectionMessage(message, options) {
-    this._sendTargetMessage("mobileconnection", message, options);
-  },
-
-  _sendVoicemailMessage: function sendVoicemailMessage(message, options) {
-    this._sendTargetMessage("voicemail", message, options);
   },
 
   updateNetworkInfo: function updateNetworkInfo(message) {
@@ -2510,6 +2499,10 @@ function MSimRadioInterfaceLayer() {
   // Calls information per subscription Id.
   this.callsInfo = [];
 
+  // Manage message targets in terms of permission. Only the authorized and
+  // registered contents can receive related messages.
+  this._messageManagerByPermission = {};
+
   //TODO read from settings
   const NUM_RILS = 2;
   for (let i = 0; i < NUM_RILS; i++) {
@@ -2550,6 +2543,43 @@ MSimRadioInterfaceLayer.prototype = {
 
   receiveMessage: function receiveMessage(msg) {
     debug("MSim Received '" + msg.name + "' message from content process");
+    if (msg.name == "child-process-shutdown") {
+      // By the time we receive child-process-shutdown, the child process has
+      // already forgotten its permissions so we need to unregister the target
+      // for every permission and every subscription.
+      this.unregisterMessageTarget(null, msg.target);
+
+      //TODO read from settings
+      const NUM_RILS = 2;
+      for (let i = 0; i < NUM_RILS; i++) {
+        this.mRILs[i].receiveMessage(msg);
+      }
+      return;
+    }
+
+    if (RIL_IPC_TELEPHONY_MSG_NAMES.indexOf(msg.name) != -1) {
+      if (!msg.target.assertPermission("telephony")) {
+        debug("Telephony message " + msg.name +
+              " from a content process with no 'telephony' privileges.");
+        return null;
+      }
+    } else if (RIL_IPC_MOBILECONNECTION_MSG_NAMES.indexOf(msg.name) != -1) {
+      if (!msg.target.assertPermission("mobileconnection")) {
+        debug("MobileConnection message " + msg.name +
+              " from a content process with no 'mobileconnection' privileges.");
+        return null;
+      }
+    } else if (RIL_IPC_VOICEMAIL_MSG_NAMES.indexOf(msg.name) != -1) {
+      if (!msg.target.assertPermission("voicemail")) {
+        debug("Voicemail message " + msg.name +
+              " from a content process with no 'voicemail' privileges.");
+        return null;
+      }
+    } else {
+      debug("Ignoring unknown message type: " + msg.name);
+      return null;
+    }
+
     switch (msg.name) {
       case "RIL:GetMicrophoneMuted":
         // This message is sync.
@@ -2563,6 +2593,9 @@ MSimRadioInterfaceLayer.prototype = {
       case "RIL:SetSpeakerEnabled":
         this.speakerEnabled = msg.json.data;
         break;
+      case "RIL:RegisterTelephonyManagerMsg":
+        this.registerMessageTarget("telephony", msg.target);
+        break;
       default:
         // Dispatch the message to the specified instance.
         //TODO currently content hasn't added subscriptionId yet
@@ -2571,6 +2604,63 @@ MSimRadioInterfaceLayer.prototype = {
     }
   },
 
+  _messageManagerByPermission: null,
+  _permissionList: null,
+  registerMessageTarget: function registerMessageTarget(permission, target) {
+    let targets = this._messageManagerByPermission[permission];
+    if (!this._permissionList) {
+      this._permissionList = [];
+    }
+    if (!targets) {
+      targets = this._messageManagerByPermission[permission] = [];
+      let list = this._permissionList;
+      if (list.indexOf(permission) == -1) {
+        list.push(permission);
+      }
+    }
+
+    if (targets.indexOf(target) != -1) {
+      debug("Already registered this target!");
+      return;
+    }
+
+    targets.push(target);
+    debug("Registered " + permission + " target: " + target);
+  },
+
+  unregisterMessageTarget: function unregisterMessageTarget(permission, target) {
+    if (permission == null) {
+      // Unregister the target for every permission when no permission is specified.
+      for (let type of this._permissionList) {
+        this.unregisterMessageTarget(type, target);
+      }
+      return;
+    }
+
+    // Unregister the target for a specified permission.
+    let targets = this._messageManagerByPermission[permission];
+    if (!targets) {
+      return;
+    }
+
+    let index = targets.indexOf(target);
+    if (index != -1) {
+      targets.splice(index, 1);
+      debug("Unregistered " + permission + " target: " + target);
+    }
+  },
+
+  _sendTargetMessage: function _sendTargetMessage(permission, message, options) {
+    let targets = this._messageManagerByPermission[permission];
+    if (!targets) {
+      return;
+    }
+
+    for each (let target in targets) {
+      target.sendAsyncMessage(message, {data: options,
+                                        subscriptionId: 0 /*Fake subscriptionId for manager*/});
+    }
+  },
   getWorker: function getWorker(i) {
     debug("getWorker "+i);
     return this.mRILs[i].worker;
@@ -2617,6 +2707,7 @@ MSimRadioInterfaceLayer.prototype = {
         }
         debug("Active call, put audio system into PHONE_STATE_IN_CALL: "
               + gAudioManager.phoneState);
+        this._sendTargetMessage("telephony", "RIL:PhoneStateChanged", "incall");
         return;
       }
 
@@ -2627,12 +2718,17 @@ MSimRadioInterfaceLayer.prototype = {
 
     // Change phoneState to PHONE_STATE_RINGTONE or PHONE_STATE_NORMAL only
     // when there's no active call.
-    gAudioManager.phoneState = _ringing ? nsIAudioManager.PHONE_STATE_RINGTONE :
-                                          nsIAudioManager.PHONE_STATE_NORMAL;
-    debug((_ringing ? "Incoming call" : "No active call") +
-          ", put audio system into " +
-          (_ringing ? "PHONE_STATE_RINGTONE" : "PHONE_STATE_NORMAL") +
-          " : " + gAudioManager.phoneState);
+    if (_ringing) {
+      gAudioManager.phoneState = nsIAudioManager.PHONE_STATE_RINGTONE;
+      debug("Incoming call, put audio system into PHONE_STATE_RINGTONE: "
+            + gAudioManager.phoneState);
+      this._sendTargetMessage("telephony", "RIL:PhoneStateChanged", "ringtone");
+    } else {
+      gAudioManager.phoneState = nsIAudioManager.PHONE_STATE_NORMAL;
+      debug("No active call, put audio system into PHONE_STATE_NORMAL: "
+            + gAudioManager.phoneState);
+      this._sendTargetMessage("telephony", "RIL:PhoneStateChanged", "idle");
+    }
   },
 };
 
