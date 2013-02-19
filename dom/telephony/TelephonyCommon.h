@@ -22,6 +22,7 @@
 #define USING_TELEPHONY_NAMESPACE \
   using namespace mozilla::dom::telephony;
 
+class nsIDOMTelephonyManager;
 class nsIDOMTelephony;
 class nsIDOMTelephonyCall;
 
@@ -31,6 +32,7 @@ enum {
   kOutgoingPlaceholderCallIndex = UINT32_MAX
 };
 
+class TelephonyManager;
 class Telephony;
 class TelephonyCall;
 

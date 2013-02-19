@@ -19,6 +19,7 @@ FAIL_ON_WARNINGS := 1
 include $(topsrcdir)/dom/dom-config.mk
 
 CPPSRCS = \
+  TelephonyManager.cpp \
   Telephony.cpp \
   TelephonyCall.cpp \
   CallEvent.cpp \
@@ -28,6 +29,7 @@ CPPSRCS = \
 
 XPIDLSRCS = \
   nsIDOMNavigatorTelephony.idl \
+  nsIDOMTelephonyManager.idl \
   nsIDOMTelephony.idl \
   nsIDOMTelephonyCall.idl \
   nsIDOMCallEvent.idl \
