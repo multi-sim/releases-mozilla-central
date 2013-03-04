@@ -28,7 +28,7 @@ public:
 
   IccManager();
 
-  void Init(nsPIDOMWindow *aWindow);
+  void Init(nsPIDOMWindow *aWindow, uint32_t subscriptionId);
   void Shutdown();
 
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(IccManager,
@@ -43,6 +43,8 @@ private:
     return static_cast<nsDOMEventTargetHelper*>(
            const_cast<IccManager*>(this));
   }
+
+  uint32_t mSubscriptionId;
 };
 
 } // namespace icc
