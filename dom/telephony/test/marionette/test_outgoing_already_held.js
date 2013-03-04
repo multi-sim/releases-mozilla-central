@@ -5,7 +5,8 @@ MARIONETTE_TIMEOUT = 10000;
 
 SpecialPowers.addPermission("telephony", true, document);
 
-let telephony = window.navigator.mozTelephony;
+let mgr = window.navigator.mozTelephonyManager;
+let telephony = mgr.defaultPhone;
 let inNumber = "5555551111";
 let outNumber = "5555552222";
 let incomingCall;
@@ -38,6 +39,7 @@ function simulateIncoming() {
     is(telephony.calls.length, 1);
     is(telephony.calls[0], incomingCall);
 
+    is(mgr.phoneState, "ringtone");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "inbound from " + inNumber + " : incoming");
@@ -67,6 +69,7 @@ function answerIncoming() {
 
     is(incomingCall, telephony.active);
 
+    is(mgr.phoneState, "incall");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "inbound from " + inNumber + " : active");
@@ -99,6 +102,7 @@ function holdCall(){
     is(telephony.calls.length, 1);
     is(telephony.calls[0], incomingCall);
 
+    is(mgr.phoneState, "idle");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "inbound from " + inNumber + " : held");
@@ -128,6 +132,7 @@ function dial() {
     is(outgoingCall, event.call);
     is(outgoingCall.state, "alerting");
 
+    is(mgr.phoneState, "incall");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "inbound from " + inNumber + " : held");
@@ -184,6 +189,7 @@ function hangUpIncoming() {
     is(telephony.calls.length, 1);
     is(telephony.calls[0], outgoingCall);
 
+    is(mgr.phoneState, "incall");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "outbound to  " + outNumber + " : active");
@@ -216,6 +222,7 @@ function hangUpOutgoing() {
     is(telephony.active, null);
     is(telephony.calls.length, 0);
 
+    is(mgr.phoneState, "idle");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "OK");

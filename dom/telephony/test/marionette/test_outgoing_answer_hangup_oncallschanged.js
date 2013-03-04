@@ -5,7 +5,8 @@ MARIONETTE_TIMEOUT = 10000;
 
 SpecialPowers.addPermission("telephony", true, document);
 
-let telephony = window.navigator.mozTelephony;
+let mgr = window.navigator.mozTelephonyManager;
+let telephony = mgr.defaultPhone;
 let number = "5555552368";
 let outgoing;
 let calls;

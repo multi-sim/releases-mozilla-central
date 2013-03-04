@@ -5,7 +5,8 @@ MARIONETTE_TIMEOUT = 10000;
 
 SpecialPowers.addPermission("telephony", true, document);
 
-let telephony = window.navigator.mozTelephony;
+let mgr = window.navigator.mozTelephonyManager;
+let telephony = mgr.defaultPhone;
 let outNumber = "5555551111";
 let inNumber = "5555552222";
 let outgoingCall;
@@ -44,6 +45,7 @@ function dial() {
     is(telephony.calls.length, 1);
     is(telephony.calls[0], outgoingCall);
 
+    is(mgr.phoneState, "incall");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "outbound to  " + outNumber + " : ringing");
@@ -103,6 +105,7 @@ function holdCall() {
     is(telephony.calls.length, 1);
     is(telephony.calls[0], outgoingCall);
 
+    is(mgr.phoneState, "idle");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "outbound to  " + outNumber + " : held");
@@ -129,6 +132,7 @@ function simulateIncoming() {
     is(telephony.calls[0], outgoingCall);
     is(telephony.calls[1], incomingCall);
 
+    is(mgr.phoneState, "ringtone");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "outbound to  " + outNumber + " : held");
@@ -163,6 +167,7 @@ function answerIncoming() {
     is(outgoingCall.state, "held");
     is(incomingCall.state, "connected");
 
+    is(mgr.phoneState, "incall");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "outbound to  " + outNumber + " : held");
@@ -249,6 +254,7 @@ function hangUpOutgoing() {
     is(telephony.calls.length, 1);
     is(incomingCall.state, "held");
 
+    is(mgr.phoneState, "idle");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "inbound from " + inNumber + " : held");
@@ -281,6 +287,7 @@ function hangUpIncoming() {
     is(telephony.active, null);
     is(telephony.calls.length, 0);
 
+    is(mgr.phoneState, "idle");
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
       is(result[0], "OK");

@@ -5,13 +5,15 @@ MARIONETTE_TIMEOUT = 10000;
 
 SpecialPowers.addPermission("telephony", true, document);
 
-let telephony = window.navigator.mozTelephony;
+let mgr = window.navigator.mozTelephonyManager;
+let telephony = mgr.defaultPhone;
 let number = "911";
 let outgoing;
 let calls;
 
 function verifyInitialState() {
   log("Verifying initial state.");
+  ok(mgr);
   ok(telephony);
   is(telephony.active, null);
   ok(telephony.calls);
@@ -42,6 +44,7 @@ function dial() {
     log("Received 'onalerting' call event.");
     is(outgoing, event.call);
     is(outgoing.state, "alerting");
+    is(mgr.phoneState, "incall");
 
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
@@ -86,6 +89,7 @@ function hangUp() {
 
     is(telephony.active, null);
     is(telephony.calls.length, 0);
+    is(mgr.phoneState, "idle");
 
     runEmulatorCmd("gsm list", function(result) {
       log("Call list is now: " + result);
