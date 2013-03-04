@@ -23,6 +23,7 @@ CPPSRCS = \
   Telephony.cpp \
   TelephonyCall.cpp \
   CallEvent.cpp \
+  VoicemailManager.cpp \
   Voicemail.cpp \
   VoicemailEvent.cpp \
   $(NULL)
@@ -33,6 +34,7 @@ XPIDLSRCS = \
   nsIDOMTelephony.idl \
   nsIDOMTelephonyCall.idl \
   nsIDOMCallEvent.idl \
+  nsIDOMVoicemailManager.idl \
   nsIDOMVoicemail.idl \
   nsIDOMVoicemailEvent.idl \
   nsIDOMVoicemailStatus.idl \

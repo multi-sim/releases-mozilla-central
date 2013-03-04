@@ -8,11 +8,12 @@
 #define mozilla_dom_telephony_voicemail_h__
 
 #include "TelephonyCommon.h"
-
 #include "nsDOMEvent.h"
 #include "nsDOMEventTargetHelper.h"
 #include "nsIDOMVoicemail.h"
 #include "nsIRadioInterfaceLayer.h"
+
+class nsPIDOMWindow;
 
 class nsIRILContentHelper;
 class nsIDOMMozVoicemailStatus;
@@ -22,6 +23,7 @@ BEGIN_TELEPHONY_NAMESPACE
 class Voicemail : public nsDOMEventTargetHelper,
                   public nsIDOMMozVoicemail
 {
+
 public:
   NS_DECL_ISUPPORTS_INHERITED
   NS_DECL_NSIDOMMOZVOICEMAIL
@@ -31,10 +33,15 @@ public:
 
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(Voicemail, nsDOMEventTargetHelper)
 
-  Voicemail(nsPIDOMWindow* aWindow, nsIRILContentHelper* aRIL);
-  virtual ~Voicemail();
+  static already_AddRefed<Voicemail>
+  Create(nsPIDOMWindow* aOwner, uint32_t aSubscriptionId);
 
 private:
+  Voicemail();
+  ~Voicemail();
+
+  uint32_t mSubscriptionId;
+
   nsCOMPtr<nsIRILContentHelper> mRIL;
   nsCOMPtr<nsIRILVoicemailCallback> mRILVoicemailCallback;
 
