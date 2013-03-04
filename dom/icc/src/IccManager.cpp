@@ -56,9 +56,10 @@ IccManager::IccManager()
 }
 
 void
-IccManager::Init(nsPIDOMWindow* aWindow)
+IccManager::Init(nsPIDOMWindow* aWindow, uint32_t subscriptionId)
 {
   BindToOwner(aWindow);
+  mSubscriptionId = subscriptionId;
 
   nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
   if (!obs) {
@@ -123,7 +124,7 @@ IccManager::SendStkResponse(const JS::Value& aCommand,
     return NS_ERROR_FAILURE;
   }
 
-  mProvider->SendStkResponse(GetOwner(), aCommand, aResponse);
+  mProvider->SendStkResponse(GetOwner(), aCommand, aResponse, mSubscriptionId);
   return NS_OK;
 }
 
@@ -134,7 +135,7 @@ IccManager::SendStkMenuSelection(uint16_t aItemIdentifier, bool aHelpRequested)
     return NS_ERROR_FAILURE;
   }
 
-  mProvider->SendStkMenuSelection(GetOwner(), aItemIdentifier, aHelpRequested);
+  mProvider->SendStkMenuSelection(GetOwner(), aItemIdentifier, aHelpRequested, mSubscriptionId);
   return NS_OK;
 }
 
@@ -145,7 +146,7 @@ IccManager::SendStkEventDownload(const JS::Value& aEvent)
     return NS_ERROR_FAILURE;
   }
 
-  mProvider->SendStkEventDownload(GetOwner(), aEvent);
+  mProvider->SendStkEventDownload(GetOwner(), aEvent, mSubscriptionId);
   return NS_OK;
 }
 

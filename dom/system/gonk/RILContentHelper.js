@@ -480,35 +480,44 @@ RILContentHelper.prototype = {
     return request;
   },
 
-  sendStkResponse: function sendStkResponse(window, command, response) {
+  sendStkResponse: function sendStkResponse(window,
+                                            command,
+                                            response,
+                                            subscriptionId) {
     if (window == null) {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
     }
     response.command = command;
-    cpmm.sendAsyncMessage("RIL:SendStkResponse", {data: response});
+    cpmm.sendAsyncMessage("RIL:SendStkResponse", {subscriptionId: subscriptionId,
+                                                  data: response});
   },
 
   sendStkMenuSelection: function sendStkMenuSelection(window,
                                                       itemIdentifier,
-                                                      helpRequested) {
+                                                      helpRequested,
+                                                      subscriptionId) {
     if (window == null) {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
     }
     cpmm.sendAsyncMessage("RIL:SendStkMenuSelection", {
-      data: {itemIdentifier: itemIdentifier,
+      data: {subscriptionId: subscriptionId,
+             itemIdentifier: itemIdentifier,
              helpRequested: helpRequested
     }});
   },
 
   sendStkEventDownload: function sendStkEventDownload(window,
-                                                      event) {
+                                                      event,
+                                                      subscriptionId) {
     if (window == null) {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
     }
-    cpmm.sendAsyncMessage("RIL:SendStkEventDownload", {data: {event: event}});
+    cpmm.sendAsyncMessage("RIL:SendStkEventDownload",
+                          {subscriptionId: subscriptionId,
+                           data: {event: event}});
   },
 
   _callbackManagerById: null,
