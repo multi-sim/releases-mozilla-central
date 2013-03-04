@@ -54,7 +54,7 @@ const RIL_IPC_MSG_NAMES = [
   "RIL:SelectNetworkAuto",
   "RIL:CallStateChanged",
   "RIL:VoicemailNotification",
-  "RIL:VoicemailNumberChanged",
+  "RIL:VoicemailInfoChanged",
   "RIL:CallError",
   "RIL:CardLockResult",
   "RIL:USSDReceived",
@@ -205,6 +205,12 @@ VoicemailStatus.prototype = {
   returnMessage: null
 };
 
+function VoicemailInfo() {}
+VoicemailInfo.prototype = {
+  number: null,
+  displayName: null
+};
+
 function RILContentHelper() {
   this.initRequests();
   this.initMessageListener(RIL_IPC_MSG_NAMES);
@@ -215,6 +221,7 @@ function RILContentHelper() {
     this.voiceConnectionInfo[subscriptionID] = new MobileConnectionInfo();
     this.dataConnectionInfo[subscriptionID] = new MobileConnectionInfo();
     this.networkSelectionMode[subscriptionID]= RIL.GECKO_NETWORK_SELECTION_UNKNOWN;
+    this.voicemailInfo[subscriptionID] = new VoicemailInfo();
     cpmm.sendAsyncMessage("RIL:RegisterMobileConnectionMsg",
                           {subscriptionId: subscriptionID});  
     
@@ -290,6 +297,13 @@ RILContentHelper.prototype = {
     network.mcc = srcNetwork.mcc;
   },
 
+  updateVoicemailInfo: function updateVoicemailInfo(srcInfo, destInfo) {
+    for (let key in srcInfo) {
+      destInfo[key] = srcInfo[key];
+    }
+  },
+
+
   // nsIRILContentHelper
 
   cardState:            [],
@@ -297,7 +311,7 @@ RILContentHelper.prototype = {
   voiceConnectionInfo:  [],
   dataConnectionInfo:   [],
   networkSelectionMode: [],
-
+  voicemailInfo:        [],
 
   getCardState: function getCardState(subscriptionId) {
     return this.cardState[subscriptionId];
@@ -527,16 +541,32 @@ RILContentHelper.prototype = {
   voicemailNumber: [],
   voicemailDisplayName: [],
 
+  getVoicemailInfo: function getVoicemailInfo(subscriptionId) {
+    // Get voicemail infomation by IPC only on first time.
+    this.getVoicemailInfo = function getVoicemailInfo(subscriptionId) {
+      return this.voicemailInfo[subscriptionId];
+    };
+
+    for (let id = 0; id < SIMNUMBER; id++) {
+      let voicemailInfo = cpmm.sendSyncMessage("RIL:GetVoicemailInfo",
+                                               {subscriptionId: id})[0];
+      if (voicemailInfo) {
+        this.updateVoicemailInfo(voicemailInfo, this.voicemailInfo[id]);
+      }
+    }
+    return this.voicemailInfo[subscriptionId];
+  },
+
   getVoicemailStatus: function getVoicemailStatus(subscriptionId) {
     return this.voicemailStatus[subscriptionId];
   },
 
   getVoicemailNumber: function getVoicemailNumber(subscriptionId) {
-    return this.voicemailNumber[subscriptionId];
+    return this.getVoicemailInfo(subscriptionId).number;
   },
 
   getVoicemailDisplayName: function getVoicemailDisplayName(subscriptionId) {
-    return this.voicemailDisplayName[subscriptionId];
+    return this.getVoicemailInfo(subscriptionId).displayName;
   },
 
   registerCallback: function registerCallback(subscriptionId, callbackType, callback) {
@@ -845,10 +875,10 @@ RILContentHelper.prototype = {
         this.handleVoicemailNotification(msg.json.subscriptionId || 0,
                                          msg.json.data);
         break;
-      case "RIL:VoicemailNumberChanged":
-        this.voicemailNumber[msg.json.subscriptionId || 0] =
+      case "RIL:VoicemailInfoChanged":
+        this.voicemailInfo[msg.json.subscriptionId].number =
           msg.json.data.number;
-        this.voicemailDisplayName[msg.json.subscriptionId || 0] =
+        this.voicemailInfo[msg.json.subscriptionId].displayName =
           msg.json.data.alphaId;
         break;
       case "RIL:CardLockResult":
