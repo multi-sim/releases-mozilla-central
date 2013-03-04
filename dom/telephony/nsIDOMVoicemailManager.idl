@@ -6,13 +6,11 @@
 
 #include "nsISupports.idl"
 
-interface nsIDOMTelephonyManager;
-interface nsIDOMMozVoicemailManager;
+interface nsIDOMMozVoicemail;
 
-[scriptable, builtinclass, uuid(57b7a7fd-97f3-4a00-b06e-480974f0c5d0)]
-interface nsIDOMNavigatorTelephony : nsISupports
+[scriptable, builtinclass, uuid(2032fe47-ed83-4bfa-96e9-1e88b39d28fb)]
+interface nsIDOMMozVoicemailManager : nsISupports
 {
-  readonly attribute nsIDOMTelephonyManager mozTelephonyManager;
-
-  readonly attribute nsIDOMMozVoicemailManager mozVoicemailManager;
+  readonly attribute jsval voicemails;
+  readonly attribute nsIDOMMozVoicemail defaultVoicemail;
 };
